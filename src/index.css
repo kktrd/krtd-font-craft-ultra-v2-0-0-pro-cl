@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Base resets ────────────────────────────────────────────────── */
+@layer base {
+  *, *::before, *::after { box-sizing: border-box; }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior: none;
+  }
+
+  body {
+    margin: 0;
+    font-family: 'DM Sans', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overscroll-behavior: none;
+    user-select: none;
+  }
+
+  /* Allow text selection only inside textareas and inputs */
+  textarea, input[type="text"], input[type="email"], input[type="password"] {
+    user-select: text;
+    -webkit-user-select: text;
+  }
+}
+
+/* ── Canvas cursor ──────────────────────────────────────────────── */
+.cursor-crosshair { cursor: crosshair; }
+
+/* ── Range input track ──────────────────────────────────────────── */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 6px;
+  border-radius: 999px;
+  outline: none;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: currentColor;
+  cursor: pointer;
+  border: 2px solid white;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+}
+
+/* ── Scrollbar ──────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.25); border-radius: 999px; }
+
+/* ── Sinhala font class ─────────────────────────────────────────── */
+.font-sinhala {
+  font-family: 'Noto Sans Sinhala', serif;
+}
+
+/* ── Canvas no-touch-scroll ─────────────────────────────────────── */
+.canvas-zone {
+  touch-action: none;
+  -webkit-touch-callout: none;
+}
+
+/* ── Smooth sheet animation ─────────────────────────────────────── */
+.sheet-enter { animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.sheet-overlay-enter { animation: fadeIn 0.25s ease-out both; }
+
+@keyframes slideUp {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes slideDown {
+  from { transform: translateY(-10px); opacity: 0; }
+  to   { transform: translateY(0);     opacity: 1; }
+}
+
+/* ── Glyph button scale hover ────────────────────────────────────── */
+.glyph-btn {
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s ease;
+}
+.glyph-btn:hover {
+  transform: scale(1.32);
+  z-index: 50;
+}
+
+/* ── Metric line label ───────────────────────────────────────────── */
+.metric-label {
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
