@@ -6,25 +6,20 @@ export default defineConfig({
   build: {
     outDir: 'dist',
     sourcemap: false,
-    minify: 'terser',
-    terserOptions: {
-      compress: {
-        drop_console: true,
-        drop_debugger: true,
-        pure_funcs: ['console.log', 'console.warn', 'console.info'],
-      },
-      mangle: { toplevel: true },
-      format: { comments: false },
+    minify: 'esbuild',          // esbuild is built-in — no extra install
+    target: 'es2020',
+    esbuildOptions: {
+      drop: ['console', 'debugger'],
     },
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom'],
+          vendor:   ['react', 'react-dom'],
           supabase: ['@supabase/supabase-js'],
-          icons: ['lucide-react'],
+          icons:    ['lucide-react'],
         },
       },
     },
   },
-  server: { port: 3000, open: true },
+  server: { port: 3000 },
 });

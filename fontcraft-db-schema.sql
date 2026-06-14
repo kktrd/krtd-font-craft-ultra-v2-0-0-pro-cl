@@ -130,3 +130,18 @@ $$;
 -- INSERT INTO public.user_roles (user_id, role, granted_by)
 -- VALUES ('YOUR-SUPABASE-USER-UUID-HERE', 'super_admin', 'system')
 -- ON CONFLICT (user_id) DO UPDATE SET role = 'super_admin';
+
+-- 9. LIVE TABLE SIZE RPC (used by Admin Metrics view)
+-- ----------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.get_table_sizes()
+RETURNS TABLE(table_name text, total_size text)
+LANGUAGE sql STABLE SECURITY DEFINER AS $$
+  SELECT
+    relname::text AS table_name,
+    pg_size_pretty(pg_total_relation_size(relid))::text AS total_size
+  FROM pg_stat_user_tables
+  WHERE schemaname = 'public'
+  ORDER BY pg_total_relation_size(relid) DESC;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_table_sizes() TO authenticated;
