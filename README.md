@@ -111,3 +111,33 @@ src/
 ---
 
 *Unauthorized code duplication or redistribution is strictly prohibited.*
+
+
+---
+
+## 🆕 v2.1 — Next-Level Features
+
+### 1. Real TTF Font Export
+Canvas strokes are now converted into true closed vector outlines (centerline + width →
+offset polygon) and compiled into an installable `.ttf` file using `opentype.js` — 100%
+in-browser, no server or CLI. Works in Word, Canva, Photoshop, and any OS font manager.
+
+### 2. Mirror / Symmetry Draw Mode
+Press `X` or click **Mirror** in Canvas Studio. A pink axis line appears at the
+horizontal center; every stroke you draw is automatically mirrored to the opposite side
+in real time — perfect for symmetric Sinhala loops (ක, ට, ඩ, ආ).
+
+### 3. Installable PWA
+The app now ships a `manifest.webmanifest`, app icons, and a service worker
+(`public/sw.js`). On Android/Desktop Chrome/Edge, an **Install** button appears in the
+header. On iOS Safari, use Share → "Add to Home Screen" (no native prompt API on iOS).
+Works offline after first visit — cached app shell + static assets.
+
+### 4. Real-time Multiplayer Collaboration
+Uses Supabase Realtime **Broadcast + Presence** (no extra SQL setup — works out of the
+box with your existing anon key). Open the same font project in two browser tabs/devices:
+- See who else is online and which character they're editing (header badge + presence strip)
+- Finished strokes sync instantly to all connected collaborators
+- Model: last-stroke-wins (simple, predictable — no operational transform)
+
+---

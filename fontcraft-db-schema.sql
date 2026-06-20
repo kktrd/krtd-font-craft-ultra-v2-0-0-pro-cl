@@ -145,3 +145,55 @@ LANGUAGE sql STABLE SECURITY DEFINER AS $$
 $$;
 
 GRANT EXECUTE ON FUNCTION public.get_table_sizes() TO authenticated;
+
+-- ================================================================
+-- SUPER ADMIN SETUP — Run AFTER confirming email in Supabase Auth
+-- ================================================================
+-- Step 1: Go to Supabase → Authentication → Users
+--         Click "Add User" → enter your email + password → Confirm
+-- Step 2: Get your UUID from the Users list
+-- Step 3: Replace 'YOUR-UUID-HERE' below and run:
+
+-- INSERT INTO public.user_roles (user_id, role, granted_by)
+-- VALUES ('YOUR-UUID-HERE', 'super_admin', 'system')
+-- ON CONFLICT (user_id) DO UPDATE SET role = 'super_admin';
+
+-- To verify:
+-- SELECT * FROM public.user_roles WHERE role = 'super_admin';
+-- ================================================================
+
+-- ================================================================
+-- GLYPH VERSION HISTORY — Time-travel / restore per character
+-- ================================================================
+CREATE TABLE IF NOT EXISTS public.glyph_history (
+  id            bigserial   PRIMARY KEY,
+  font_name     text        NOT NULL,
+  glyph_char    text        NOT NULL,
+  strokes       jsonb       NOT NULL,
+  stroke_count  int         NOT NULL DEFAULT 0,
+  label         text,
+  user_id       text        NOT NULL DEFAULT 'guest',
+  created_at    timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_glyph_history_lookup
+  ON public.glyph_history(font_name, glyph_char, created_at DESC);
+
+ALTER TABLE public.glyph_history ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "anyone_manage_history" ON public.glyph_history;
+CREATE POLICY "anyone_manage_history" ON public.glyph_history
+  FOR ALL USING (true) WITH CHECK (true);
+
+-- Optional housekeeping: keep only the latest 20 snapshots per (font_name, glyph_char).
+-- Run manually or schedule via Supabase Cron if the table grows large:
+--
+-- DELETE FROM public.glyph_history a
+-- WHERE a.id NOT IN (
+--   SELECT id FROM (
+--     SELECT id, ROW_NUMBER() OVER (
+--       PARTITION BY font_name, glyph_char ORDER BY created_at DESC
+--     ) AS rn
+--     FROM public.glyph_history
+--   ) ranked WHERE rn <= 20
+-- );

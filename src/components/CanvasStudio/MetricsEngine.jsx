@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sliders, RotateCcw, UploadCloud, DownloadCloud, Download, Upload } from 'lucide-react';
+import { Sliders, RotateCcw, UploadCloud, DownloadCloud, Download, Upload, FileType2, History } from 'lucide-react';
 import { METRIC_LABELS } from '../../utils/glyphData.js';
 
 const METRIC_COLORS = {
@@ -15,7 +15,7 @@ export default function MetricsEngine({
   fontName, setFontName,
   onPushCloud, onPullCloud,
   onExportJSON, onImportJSON,
-  onCompileSVG, T,
+  onCompileSVG, onCompileTTF, onOpenHistory, savedLabel, T,
 }) {
   return (
     <div className="space-y-5">
@@ -82,6 +82,16 @@ export default function MetricsEngine({
 
       <div className={`pt-4 border-t space-y-2 ${T.divider}`}>
         <h3 className={`text-[9px] font-bold uppercase tracking-widest flex items-center gap-1.5 mb-2 ${T.muted}`}>
+          <History className="w-3.5 h-3.5" /> Version History
+        </h3>
+        <button onClick={onOpenHistory}
+          className={`w-full py-2.5 rounded-xl text-[10px] font-bold flex items-center justify-center gap-2 border transition ${T.accentBg}`}>
+          <History className="w-3.5 h-3.5" /> View Saved Versions
+        </button>
+      </div>
+
+      <div className={`pt-4 border-t space-y-2 ${T.divider}`}>
+        <h3 className={`text-[9px] font-bold uppercase tracking-widest flex items-center gap-1.5 mb-2 ${T.muted}`}>
           <Download className="w-3.5 h-3.5" /> Local Backup
         </h3>
         <button onClick={onExportJSON}
@@ -94,10 +104,19 @@ export default function MetricsEngine({
         </button>
       </div>
 
-      <button onClick={onCompileSVG}
-        className={`w-full py-3.5 rounded-xl text-[10px] font-black flex items-center justify-center gap-2 uppercase tracking-wider shadow-md transition ${T.btn}`}>
-        <Download className="w-4 h-4" /> Build &amp; Export SVG Font
-      </button>
+      <div className="space-y-2">
+        <button onClick={onCompileTTF}
+          className={`w-full py-3.5 rounded-xl text-[10px] font-black flex items-center justify-center gap-2 uppercase tracking-wider shadow-md transition ${T.btn}`}>
+          <FileType2 className="w-4 h-4" /> Build &amp; Export TTF Font
+        </button>
+        <button onClick={onCompileSVG}
+          className={`w-full py-2.5 rounded-xl text-[10px] font-bold flex items-center justify-center gap-2 border transition ${T.btnGhost}`}>
+          <Download className="w-3.5 h-3.5" /> Export SVG Font (legacy)
+        </button>
+        <p className="text-[8px] opacity-30 text-center px-2">
+          TTF = real installable font (Word, Canva, Photoshop). SVG = preview-only outline.
+        </p>
+      </div>
     </div>
   );
 }
