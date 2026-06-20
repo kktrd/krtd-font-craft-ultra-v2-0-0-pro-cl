@@ -1,15 +1,24 @@
 import React, { useMemo, useState } from 'react';
-import { Type, Search, X, Copy } from 'lucide-react';
+import { Type, Search, X, Copy, Users } from 'lucide-react';
 import { GLYPH_SECTIONS } from '../../utils/glyphData.js';
 
-export default function AtlasMatrix({ selectedChar, setSelectedChar, glyphs, T, onSelect, onCopyGlyph }) {
+export default function AtlasMatrix({
+  selectedChar, setSelectedChar, glyphs, T, onSelect, onCopyGlyph,
+  activeEditors = [], // [{id,name,color,char}] — collaborators currently on some char
+}) {
   const [search, setSearch] = useState('');
 
   const totalChars = useMemo(() => GLYPH_SECTIONS.reduce((a, s) => a + s.chars.length, 0), []);
   const drawnCount = Object.keys(glyphs).length;
   const pct        = Math.round((drawnCount / totalChars) * 100);
 
-  // Filter sections by search
+  // Map char -> editor (first match) for O(1) lookup per glyph button
+  const editorByChar = useMemo(() => {
+    const map = {};
+    activeEditors.forEach(e => { if (e.char && !map[e.char]) map[e.char] = e; });
+    return map;
+  }, [activeEditors]);
+
   const filteredSections = useMemo(() => {
     if (!search.trim()) return GLYPH_SECTIONS;
     return GLYPH_SECTIONS.map(sec => ({
@@ -31,7 +40,6 @@ export default function AtlasMatrix({ selectedChar, setSelectedChar, glyphs, T, 
           </span>
         </div>
 
-        {/* Progress bar */}
         <div className={`w-full h-1.5 rounded-full overflow-hidden border ${T.sub}`}>
           <div className="h-full rounded-full transition-all duration-700"
             style={{ width: `${pct}%`, backgroundColor: T.accentHex }}/>
@@ -79,24 +87,29 @@ export default function AtlasMatrix({ selectedChar, setSelectedChar, glyphs, T, 
           </h3>
           <div className="grid grid-cols-5 gap-2 relative">
             {section.chars.map((char) => {
-              const isSelected = selectedChar === char;
+              const isSelected  = selectedChar === char;
               const strokeCount = glyphs[char]?.length || 0;
+              const editor      = editorByChar[char];
+
               return (
                 <button
                   key={char}
                   onClick={() => { setSelectedChar(char); onSelect?.(); }}
                   className={`glyph-btn h-11 w-full text-lg font-medium rounded-xl border flex items-center justify-center relative font-sinhala
                     ${isSelected ? T.glyphSel : T.glyphIdle}`}
-                  title={`${char}${strokeCount ? ` — ${strokeCount} stroke${strokeCount>1?'s':''}` : ''}`}
+                  style={editor ? { boxShadow: `0 0 0 2px ${editor.color}` } : undefined}
+                  title={`${char}${strokeCount ? ` — ${strokeCount} stroke${strokeCount>1?'s':''}` : ''}${editor ? ` — ${editor.name} is editing` : ''}`}
                 >
                   <span className="leading-none select-none pointer-events-none">{char}</span>
-                  {/* Dot indicator — inline style prevents broken className */}
+
+                  {/* Has-content dot (top-right) */}
                   {strokeCount > 0 && (
                     <span
                       className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full"
                       style={{ backgroundColor: isSelected ? 'rgba(255,255,255,0.75)' : T.accentHex }}
                     />
                   )}
+
                   {/* Stroke count badge */}
                   {strokeCount > 1 && (
                     <span
@@ -104,6 +117,17 @@ export default function AtlasMatrix({ selectedChar, setSelectedChar, glyphs, T, 
                       style={{ color: isSelected ? 'rgba(255,255,255,0.7)' : T.accentHex }}
                     >
                       {strokeCount}
+                    </span>
+                  )}
+
+                  {/* Live "being edited" avatar (top-left) */}
+                  {editor && (
+                    <span
+                      className="absolute -top-1.5 -left-1.5 w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center animate-pulse"
+                      style={{ backgroundColor: editor.color, borderColor: 'white' }}
+                      title={editor.name}
+                    >
+                      <Users className="w-2 h-2 text-white" />
                     </span>
                   )}
                 </button>

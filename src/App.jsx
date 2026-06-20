@@ -14,6 +14,7 @@ import { useInstallPrompt }   from './hooks/useInstallPrompt.js';
 import { useRealtimeCollab }  from './hooks/useRealtimeCollab.js';
 import { useVersionHistory }  from './hooks/useVersionHistory.js';
 import { downloadTTF }        from './utils/fontCompiler.js';
+import { downloadSpecimenPDF } from './utils/specimenGenerator.js';
 
 import Header               from './components/Shared/Header.jsx';
 import Footer               from './components/Shared/Footer.jsx';
@@ -312,6 +313,15 @@ export default function App() {
     }
   };
 
+  const exportSpecimenPDF = () => {
+    try {
+      const count = downloadSpecimenPDF(fontName, glyphs, metrics);
+      alert(`📄 Specimen sheet generated — ${count} glyph(s)!`);
+    } catch (err) {
+      alert(`❌ PDF export error: ${err.message}`);
+    }
+  };
+
   // ── Version history handlers ──────────────────────────────────────────────
   const openHistorySheet = () => {
     setShowHistory(true);
@@ -347,6 +357,7 @@ export default function App() {
     onImportJSON: () => fileInputRef.current.click(),
     onCompileSVG: compileSVG,
     onCompileTTF: compileTTF,
+    onExportSpecimenPDF: exportSpecimenPDF,
     onOpenHistory: openHistorySheet,
     T,
   };
@@ -401,6 +412,9 @@ export default function App() {
                 ['05','Mirror Draw (X)','Symmetric letters — එක පැත්තක් අඳිනකොට අනික් පැත්ත auto-mirror වෙනවා.'],
                 ['06','Real TTF Export','SVG නෙමෙයි — actual installable .ttf font file Word/Canva වල use කරන්න පුළුවන්.'],
                 ['07','Live Collaboration','එකම font එකේ වෙනත් designers draw කරනකොට real-time පෙනේවි.'],
+                ['08','Stylus Pressure (Pen)','Apple Pencil/Wacom pen pressure → stroke width auto-vary. Mouse/touch වලට වෙනස් නෑ.'],
+                ['09','Reference Overlay (G)','Char එකක් type කරලා, ඒක ghost reference විදිහට පෙන්නා, consistency ඕන character draw කරන්න.'],
+                ['10','Specimen PDF','Metrics panel → "Export Specimen Sheet" — ඔයාගේ font එකේ සියලුම glyphs showcase PDF එකක්.'],
               ].map(([n, t, d]) => (
                 <div key={n} className={`p-3 rounded-xl border flex gap-3 ${T.sub}`}>
                   <span className={`font-black flex-shrink-0 text-sm ${T.accent}`}>{n}</span>
@@ -479,7 +493,7 @@ export default function App() {
             <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
 
               <aside className={`hidden md:block md:col-span-3 p-4 rounded-2xl border lg:max-h-[830px] overflow-y-auto ${T.card}`}>
-                <AtlasMatrix selectedChar={selectedChar} setSelectedChar={setSelectedChar} glyphs={glyphs} T={T} onCopyGlyph={copyGlyph}/>
+                <AtlasMatrix selectedChar={selectedChar} setSelectedChar={setSelectedChar} glyphs={glyphs} T={T} onCopyGlyph={copyGlyph} activeEditors={collaborators.filter(c => c.id !== identity.id)}/>
               </aside>
 
               <section className={`col-span-12 md:col-span-6 p-4 md:p-5 rounded-2xl border ${T.card}`}>
@@ -511,7 +525,7 @@ export default function App() {
 
             {/* Mobile bottom sheets */}
             <BottomSheetDrawer open={mobileSheet === 'atlas'} onClose={() => setMobileSheet(null)} title="Atlas Matrix" T={T}>
-              <AtlasMatrix selectedChar={selectedChar} setSelectedChar={setSelectedChar} glyphs={glyphs} T={T} onSelect={() => setMobileSheet(null)} onCopyGlyph={copyGlyph}/>
+              <AtlasMatrix selectedChar={selectedChar} setSelectedChar={setSelectedChar} glyphs={glyphs} T={T} onSelect={() => setMobileSheet(null)} onCopyGlyph={copyGlyph} activeEditors={collaborators.filter(c => c.id !== identity.id)}/>
             </BottomSheetDrawer>
 
             <BottomSheetDrawer open={mobileSheet === 'metrics'} onClose={() => setMobileSheet(null)} title="Metrics Engine" T={T}>

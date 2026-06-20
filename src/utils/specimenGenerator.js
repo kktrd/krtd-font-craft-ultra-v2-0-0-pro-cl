@@ -1,0 +1,141 @@
+/**
+ * KRTD Specimen Sheet Generator v1.0
+ * Renders every drawn glyph onto an offscreen canvas, then assembles a
+ * clean, professional multi-page PDF specimen sheet using jsPDF.
+ * Runs 100% in-browser — no server.
+ */
+import { jsPDF } from 'jspdf';
+
+const CS = 500; // internal glyph coordinate space
+
+/** Renders a single glyph's strokes onto a small offscreen canvas, returns dataURL. */
+function renderGlyphThumbnail(strokes, size = 160, inkColor = '#1e293b') {
+  const canvas = document.createElement('canvas');
+  canvas.width = size; canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, size, size);
+
+  if (!strokes?.length) {
+    ctx.strokeStyle = '#e2e8f0';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(2, 2, size - 4, size - 4);
+    return canvas.toDataURL('image/png');
+  }
+
+  const scale = size / CS;
+  strokes.forEach((stroke) => {
+    if (stroke.length < 2 || stroke[0]?.isEraser) return;
+    let lx = stroke[0].x * scale, ly = stroke[0].y * scale, lmx = lx, lmy = ly;
+    for (let i = 1; i < stroke.length; i++) {
+      const pt = stroke[i];
+      const px = pt.x * scale, py = pt.y * scale;
+      const mx = (lx + px) / 2, my = (ly + py) / 2;
+      ctx.beginPath();
+      ctx.moveTo(lmx, lmy);
+      ctx.quadraticCurveTo(lx, ly, mx, my);
+      ctx.lineWidth = Math.max(0.8, (pt.strokeWidth || 8) * scale);
+      ctx.strokeStyle = inkColor;
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.stroke();
+      lmx = mx; lmy = my; lx = px; ly = py;
+    }
+  });
+  return canvas.toDataURL('image/png');
+}
+
+/**
+ * Generates and downloads a specimen sheet PDF.
+ * @returns {number} glyph count included
+ */
+export function downloadSpecimenPDF(fontName, glyphs, metrics) {
+  const entries = Object.entries(glyphs).filter(([, s]) => s?.length > 0);
+  if (entries.length === 0) {
+    throw new Error('No drawn glyphs to include. Draw at least one character first.');
+  }
+
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  const margin = 40;
+
+  // ── Cover header ──────────────────────────────────────────────────────
+  doc.setFillColor(74, 30, 0);
+  doc.rect(0, 0, pageW, 90, 'F');
+  doc.setTextColor(253, 251, 247);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(22);
+  doc.text(fontName, margin, 50);
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.text('Sinhala Typeface Specimen Sheet — KRTD Font Craft Ultra', margin, 70);
+  doc.setFontSize(9);
+  doc.text(new Date().toLocaleDateString('en-GB', { year:'numeric', month:'long', day:'numeric' }), pageW - margin, 70, { align: 'right' });
+
+  doc.setTextColor(30, 30, 30);
+
+  // ── Metrics summary ───────────────────────────────────────────────────
+  let y = 115;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+  doc.text('Font Metrics', margin, y);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9);
+  y += 18;
+  const metricLine = `Ascender ${metrics.ascender}px   ·   Cap Height ${metrics.capHeight}px   ·   x-Height ${metrics.xHeight}px   ·   Baseline ${metrics.baseline}px   ·   Descender ${metrics.descender}px`;
+  doc.text(metricLine, margin, y);
+  y += 14;
+  doc.text(`Total glyphs designed: ${entries.length}`, margin, y);
+  y += 24;
+  doc.setDrawColor(220, 220, 220);
+  doc.line(margin, y, pageW - margin, y);
+  y += 24;
+
+  // ── Glyph grid ────────────────────────────────────────────────────────
+  const cols = 6;
+  const cellSize = (pageW - margin * 2 - (cols - 1) * 10) / cols;
+  const thumbSize = Math.floor(cellSize * 0.78);
+  const rowHeight = cellSize + 16;
+
+  let col = 0;
+
+  entries.forEach(([char, strokes]) => {
+    if (y + rowHeight > pageH - margin) {
+      doc.addPage();
+      y = margin;
+      col = 0;
+    }
+    const x = margin + col * (cellSize + 10);
+
+    // Cell background
+    doc.setDrawColor(230, 230, 230);
+    doc.setFillColor(250, 250, 250);
+    doc.roundedRect(x, y, cellSize, cellSize, 4, 4, 'FD');
+
+    // Glyph thumbnail image
+    const dataUrl = renderGlyphThumbnail(strokes, 300, '#1e1b4b');
+    const pad = (cellSize - thumbSize) / 2;
+    doc.addImage(dataUrl, 'PNG', x + pad, y + pad - 6, thumbSize, thumbSize);
+
+    // Unicode label
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7);
+    doc.setTextColor(140, 140, 140);
+    const cp = char.codePointAt(0).toString(16).toUpperCase().padStart(4, '0');
+    doc.text(`U+${cp}`, x + cellSize / 2, y + cellSize - 4, { align: 'center' });
+    doc.setTextColor(30, 30, 30);
+
+    col++;
+    if (col >= cols) { col = 0; y += rowHeight; }
+  });
+
+  // ── Footer on every page ──────────────────────────────────────────────
+  const pageCount = doc.internal.getNumberOfPages();
+  for (let p = 1; p <= pageCount; p++) {
+    doc.setPage(p);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5);
+    doc.setTextColor(160, 160, 160);
+    doc.text(`© ${new Date().getFullYear()} ${fontName} — Generated by KRTD Font Craft Ultra`, margin, pageH - 20);
+    doc.text(`Page ${p} of ${pageCount}`, pageW - margin, pageH - 20, { align: 'right' });
+  }
+
+  doc.save(`${fontName}_specimen.pdf`);
+  return entries.length;
+}

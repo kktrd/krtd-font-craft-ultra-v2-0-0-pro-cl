@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sliders, RotateCcw, UploadCloud, DownloadCloud, Download, Upload, FileType2, History } from 'lucide-react';
+import { Sliders, RotateCcw, UploadCloud, DownloadCloud, Download, Upload, FileType2, History, FileText } from 'lucide-react';
 import { METRIC_LABELS } from '../../utils/glyphData.js';
 
 const METRIC_COLORS = {
@@ -15,7 +15,7 @@ export default function MetricsEngine({
   fontName, setFontName,
   onPushCloud, onPullCloud,
   onExportJSON, onImportJSON,
-  onCompileSVG, onCompileTTF, onOpenHistory, savedLabel, T,
+  onCompileSVG, onCompileTTF, onOpenHistory, onExportSpecimenPDF, savedLabel, T,
 }) {
   return (
     <div className="space-y-5">
@@ -109,12 +109,16 @@ export default function MetricsEngine({
           className={`w-full py-3.5 rounded-xl text-[10px] font-black flex items-center justify-center gap-2 uppercase tracking-wider shadow-md transition ${T.btn}`}>
           <FileType2 className="w-4 h-4" /> Build &amp; Export TTF Font
         </button>
+        <button onClick={onExportSpecimenPDF}
+          className={`w-full py-2.5 rounded-xl text-[10px] font-bold flex items-center justify-center gap-2 border transition ${T.accentBg}`}>
+          <FileText className="w-3.5 h-3.5" /> Export Specimen Sheet (PDF)
+        </button>
         <button onClick={onCompileSVG}
           className={`w-full py-2.5 rounded-xl text-[10px] font-bold flex items-center justify-center gap-2 border transition ${T.btnGhost}`}>
           <Download className="w-3.5 h-3.5" /> Export SVG Font (legacy)
         </button>
         <p className="text-[8px] opacity-30 text-center px-2">
-          TTF = real installable font (Word, Canva, Photoshop). SVG = preview-only outline.
+          TTF = real installable font. PDF = showcase sheet for clients. SVG = preview outline.
         </p>
       </div>
     </div>

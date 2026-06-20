@@ -2,13 +2,13 @@ import React, { useRef, useEffect, useCallback, useState } from 'react';
 import {
   Paintbrush, Eraser, Undo2, Redo2, Minus, Plus,
   Grid3X3, Sparkles, Layers, ChevronUp, Image,
-  Keyboard, ClipboardPaste, Ruler, FlipHorizontal2
+  Keyboard, ClipboardPaste, Ruler, FlipHorizontal2, Layers3, Pen
 } from 'lucide-react';
 import { rdpSimplify } from '../../utils/rdpSimplifier.js';
 import { GLYPH_VARIATION_RULES } from '../../utils/glyphData.js';
 
 const CS = 500;
-const MIRROR_AXIS = CS / 2; // vertical center line for symmetry
+const MIRROR_AXIS = CS / 2;
 
 export default function CanvasWorkspace({
   theme, T,
@@ -38,16 +38,24 @@ export default function CanvasWorkspace({
   const widthRef     = useRef(strokeWidth);
   const pinchRef     = useRef(null);
 
-  // Mirror-mode ghost stroke refs (run in parallel with primary stroke)
   const mirrorLastPtRef  = useRef(null);
   const mirrorLastMidRef = useRef({ x:0, y:0 });
 
   const displaySizeRef = useRef(CS);
 
+  // ── Stylus pressure tracking (Pointer Events, pen only) ─────────────────
+  const pressureRef   = useRef(0.5);
+  const isPenRef       = useRef(false);
+  const penLastSeenRef = useRef(0);
+
   const [containerW,    setContainerW]    = useState(CS);
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showRuler,     setShowRuler]     = useState(false);
   const [mirrorMode,    setMirrorMode]    = useState(false);
+
+  // ── Onion-skin reference overlay ─────────────────────────────────────────
+  const [referenceMode, setReferenceMode] = useState(false);
+  const [referenceChar, setReferenceChar] = useState('');
 
   // ── Responsive container width ─────────────────────────────────────────
   useEffect(() => {
@@ -65,6 +73,18 @@ export default function CanvasWorkspace({
   const displaySize = CS * totalScale;
   useEffect(() => { displaySizeRef.current = displaySize; }, [displaySize]);
 
+  // ── Pointer pressure sampler — runs alongside mouse/touch handlers, ─────
+  // only ever UPDATES a ref (never draws), so it can't cause double-strokes.
+  const handlePointerMove = useCallback((e) => {
+    if (e.pointerType === 'pen') {
+      isPenRef.current = true;
+      pressureRef.current = e.pressure > 0 ? e.pressure : 0.5;
+      penLastSeenRef.current = Date.now();
+    } else if (Date.now() - penLastSeenRef.current > 400) {
+      isPenRef.current = false; // fall back to mouse/touch heuristics
+    }
+  }, []);
+
   // ── Grid & metrics ─────────────────────────────────────────────────────
   const drawGrid = useCallback((ctx) => {
     ctx.clearRect(0, 0, CS, CS);
@@ -81,7 +101,6 @@ export default function CanvasWorkspace({
       ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(CS,i); ctx.stroke();
     }
 
-    // Mirror axis line
     if (mirrorMode) {
       ctx.setLineDash([6,3]);
       ctx.strokeStyle = '#ec4899'; ctx.lineWidth = 1.5;
@@ -132,10 +151,40 @@ export default function CanvasWorkspace({
     }
   }, [theme, showMetrics, metrics, showRuler, mirrorMode]);
 
+  // ── Onion-skin ghost reference (drawn between grid and active strokes) ──
+  const drawReferenceGhost = useCallback((ctx) => {
+    if (!referenceMode || !referenceChar || referenceChar === selectedChar) return;
+    const refPack = glyphs[referenceChar];
+    if (!refPack?.length) return;
+    ctx.save();
+    ctx.globalAlpha = 0.20;
+    refPack.forEach(line => {
+      if (line.length < 2) return;
+      let lx=line[0].x, ly=line[0].y, lmx=lx, lmy=ly;
+      for (let i=1; i<line.length; i++) {
+        const pt=line[i]; const mx=(lx+pt.x)/2, my=(ly+pt.y)/2;
+        ctx.beginPath(); ctx.moveTo(lmx,lmy);
+        ctx.quadraticCurveTo(lx,ly,mx,my);
+        ctx.lineWidth   = pt.strokeWidth || 8;
+        ctx.strokeStyle = theme==='dark' ? '#94a3b8' : '#64748b';
+        ctx.lineCap='round'; ctx.lineJoin='round'; ctx.stroke();
+        lmx=mx; lmy=my; lx=pt.x; ly=pt.y;
+      }
+    });
+    ctx.restore();
+  }, [referenceMode, referenceChar, selectedChar, glyphs, theme]);
+
+  // Combined background painter — grid + ghost reference together
+  const paintBackground = useCallback((ctx) => {
+    drawGrid(ctx);
+    drawReferenceGhost(ctx);
+  }, [drawGrid, drawReferenceGhost]);
+
   const redrawGlyph = useCallback((pack, ctx) => {
     const c = ctx || contextRef.current;
-    if (!c || !pack) return;
-    drawGrid(c);
+    if (!c) return;
+    paintBackground(c);
+    if (!pack) return;
     pack.forEach(line => {
       if (line.length < 2) return;
       let lx=line[0].x, ly=line[0].y, lmx=lx, lmy=ly;
@@ -150,21 +199,19 @@ export default function CanvasWorkspace({
         lx=pt.x; ly=pt.y;
       }
     });
-  }, [drawGrid, aiSmooth, strokeWidth, T]);
+  }, [paintBackground, aiSmooth, strokeWidth, T]);
 
   useEffect(() => {
     const canvas = canvasRef.current; if (!canvas) return;
     const ctx = canvas.getContext('2d');
     ctx.lineCap='round'; ctx.lineJoin='round';
     contextRef.current = ctx;
-    if (glyphs[selectedChar]?.length) redrawGlyph(glyphs[selectedChar], ctx);
-    else drawGrid(ctx);
-  }, [selectedChar, theme, showMetrics, metrics, showRuler, mirrorMode]);
+    redrawGlyph(glyphs[selectedChar], ctx);
+  }, [selectedChar, theme, showMetrics, metrics, showRuler, mirrorMode, referenceMode, referenceChar]);
 
   useEffect(() => {
     if (!contextRef.current) return;
-    if (glyphs[selectedChar]?.length) redrawGlyph(glyphs[selectedChar]);
-    else drawGrid(contextRef.current);
+    redrawGlyph(glyphs[selectedChar]);
   }, [aiSmooth]);
 
   // ── Keyboard shortcuts ─────────────────────────────────────────────────
@@ -183,6 +230,7 @@ export default function CanvasWorkspace({
         case 's': setSnapEnabled(s=>!s); break;
         case 'r': setShowRuler(s=>!s);   break;
         case 'x': setMirrorMode(s=>!s);  break;
+        case 'g': setReferenceMode(s=>!s); break;
         case '[': setStrokeWidth(w=>Math.max(2,w-2));  break;
         case ']': setStrokeWidth(w=>Math.min(48,w+2)); break;
         case '1': setZoomLevel(1);   break;
@@ -231,7 +279,11 @@ export default function CanvasWorkspace({
     const vel=dist/((c.time-lp.time)||1);
     let targetW=strokeWidth;
     if (!isEraser) {
-      if (brushMode==='calligraphy') {
+      if (isPenRef.current) {
+        // Real stylus pressure overrides velocity/angle heuristics
+        const p = Math.max(0.12, pressureRef.current);
+        targetW = Math.max(2, Math.min(strokeWidth*1.6, strokeWidth * p * 1.3));
+      } else if (brushMode==='calligraphy') {
         const spd=Math.max(0.3,1-vel*0.13);
         const ang=Math.atan2(dy,dx);
         const angF=0.4+0.6*Math.abs(Math.sin(ang-Math.PI/4));
@@ -254,7 +306,6 @@ export default function CanvasWorkspace({
     lastPtRef.current=c;
     strokeRef.current.push({x:c.x,y:c.y,isEraser,strokeWidth:cw});
 
-    // ── Live mirror ghost stroke ──────────────────────────────────────────
     if (mirrorMode && !isEraser && mirrorLastPtRef.current) {
       const mlp = mirrorLastPtRef.current;
       const mcx = 2*MIRROR_AXIS - c.x;
@@ -275,7 +326,7 @@ export default function CanvasWorkspace({
     if (!isDrawingRef.current) return; isDrawingRef.current=false;
     const raw=[...strokeRef.current]; if (raw.length<2) return;
     let stroke = raw[0]?.isEraser ? raw : rdpSimplify(raw, 1.5);
-    if (!isEraser && brushMode==='tapered' && stroke.length>12) {
+    if (!isEraser && brushMode==='tapered' && !isPenRef.current && stroke.length>12) {
       stroke=stroke.map((pt,i)=>{
         const ft=stroke.length-1-i;
         return ft<12 ? {...pt,strokeWidth:Math.max(2,strokeWidth*(ft/12))} : pt;
@@ -285,11 +336,10 @@ export default function CanvasWorkspace({
     const prev=glyphs[selectedChar]||[];
     let newStrokes = [...prev, stroke];
 
-    // ── Persist mirrored stroke (geometry only — RDP'd independently) ──────
     if (mirrorMode && !isEraser) {
       const mirroredRaw = raw.map(p => ({ ...p, x: 2*MIRROR_AXIS - p.x }));
       const mirroredStroke = rdpSimplify(mirroredRaw, 1.5);
-      const finalMirrored = !isEraser && brushMode==='tapered' && mirroredStroke.length>12
+      const finalMirrored = brushMode==='tapered' && !isPenRef.current && mirroredStroke.length>12
         ? mirroredStroke.map((pt,i) => {
             const ft = mirroredStroke.length-1-i;
             return ft<12 ? {...pt, strokeWidth:Math.max(2,strokeWidth*(ft/12))} : pt;
@@ -341,8 +391,8 @@ export default function CanvasWorkspace({
     setUndoStack(u=>u.slice(0,-1));
     const updated={...glyphs,[prev.char]:prev.strokes};
     setGlyphs(updated);
-    if (prev.strokes.length) redrawGlyph(prev.strokes); else drawGrid(contextRef.current);
-  }, [undoStack, glyphs, selectedChar, drawGrid, redrawGlyph]);
+    redrawGlyph(prev.strokes);
+  }, [undoStack, glyphs, selectedChar, redrawGlyph]);
 
   const handleRedo = useCallback(() => {
     if (!redoStack.length) return;
@@ -351,15 +401,15 @@ export default function CanvasWorkspace({
     setRedoStack(r=>r.slice(0,-1));
     const updated={...glyphs,[next.char]:next.strokes};
     setGlyphs(updated);
-    if (next.strokes.length) redrawGlyph(next.strokes); else drawGrid(contextRef.current);
-  }, [redoStack, glyphs, selectedChar, drawGrid, redrawGlyph]);
+    redrawGlyph(next.strokes);
+  }, [redoStack, glyphs, selectedChar, redrawGlyph]);
 
   const clearCanvas = useCallback(() => {
     setUndoStack(u=>[...u.slice(-49),{char:selectedChar,strokes:glyphs[selectedChar]||[]}]);
     setRedoStack([]);
-    drawGrid(contextRef.current);
     const updated={...glyphs}; delete updated[selectedChar]; setGlyphs(updated);
-  }, [glyphs, selectedChar, drawGrid]);
+    redrawGlyph(null);
+  }, [glyphs, selectedChar, redrawGlyph]);
 
   // ── Paste clipboard glyph ──────────────────────────────────────────────
   const pasteClipboard = useCallback(() => {
@@ -412,6 +462,7 @@ export default function CanvasWorkspace({
   const brushAc = theme==='dark'?'bg-slate-800 text-cyan-400 shadow-sm':theme==='comfort'?'bg-[#fdfbf7] text-amber-800 shadow-sm':'bg-white text-indigo-600 shadow-sm';
   const eraserAc= theme==='dark'?'bg-slate-800 text-red-400 shadow-sm':theme==='comfort'?'bg-[#fdfbf7] text-red-500 shadow-sm':'bg-white text-red-500 shadow-sm';
   const mirrorAc= 'bg-pink-500 text-white shadow-sm';
+  const refAc   = 'bg-violet-500 text-white shadow-sm';
 
   const ZOOMS=[1,1.5,2,3];
   const MODES=['calligraphy','tapered','uniform'];
@@ -419,13 +470,12 @@ export default function CanvasWorkspace({
   return (
     <div className="space-y-3">
 
-      {/* Shortcuts panel */}
       {showShortcuts && (
         <div className={`p-3 rounded-xl border text-[10px] ${T.sub}`}>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 font-mono">
             {[['Ctrl+Z','Undo'],['Ctrl+Y','Redo'],['E','Eraser'],['B','Brush'],
               ['M','Metrics'],['S','Snap'],['R','Ruler'],['X','Mirror'],
-              ['[ ]','Size ±'],['1-4','Zoom']].map(([k,v])=>(
+              ['G','Reference'],['[ ]','Size ±'],['1-4','Zoom']].map(([k,v])=>(
               <div key={k} className="flex items-center gap-2">
                 <kbd className={`px-1.5 py-0.5 rounded border text-[9px] font-black ${T.card}`}>{k}</kbd>
                 <span className="opacity-50">{v}</span>
@@ -443,6 +493,11 @@ export default function CanvasWorkspace({
             <span className="ml-2 text-sm opacity-30 font-sans font-normal">
               U+{selectedChar.codePointAt(0).toString(16).toUpperCase().padStart(4,'0')}
             </span>
+            {isPenRef.current && (
+              <span className="ml-2 text-[9px] font-sans font-black text-violet-400 align-middle inline-flex items-center gap-0.5">
+                <Pen className="w-3 h-3"/> Pen
+              </span>
+            )}
           </h2>
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -486,6 +541,24 @@ export default function CanvasWorkspace({
         </div>
       )}
 
+      {/* Reference mode banner + char picker */}
+      {referenceMode && (
+        <div className="flex items-center gap-3 p-2.5 rounded-xl border bg-violet-500/10 border-violet-500/30">
+          <Layers3 className="w-4 h-4 flex-shrink-0 text-violet-500"/>
+          <span className="text-[10px] font-bold text-violet-500 flex-shrink-0">Reference:</span>
+          <input
+            type="text" maxLength={1} value={referenceChar}
+            onChange={e => setReferenceChar(e.target.value.trim())}
+            placeholder="e.g. ක"
+            autoCapitalize="none" autoCorrect="off" spellCheck={false}
+            className="w-12 text-center font-sinhala font-black text-sm bg-transparent border border-violet-400/40 rounded-lg py-1 focus:outline-none text-violet-500"
+          />
+          <span className="text-[9px] text-violet-400 flex-1">
+            {referenceChar && !glyphs[referenceChar]?.length ? 'මේ char එක draw කරලා නෑ' : 'ඝෝස්ට් overlay ලෙස පෙනේවි'}
+          </span>
+        </div>
+      )}
+
       {/* Brush controls */}
       <div className={`flex flex-wrap items-center gap-x-3 gap-y-2 p-2.5 rounded-xl border text-[10px] font-black ${T.sub}`}>
         <div className="flex items-center gap-1">
@@ -501,7 +574,7 @@ export default function CanvasWorkspace({
           <span className="font-mono w-5 text-center">{strokeWidth}</span>
           <button onClick={()=>setStrokeWidth(w=>Math.min(48,w+2))} className="p-1"><Plus  className="w-3.5 h-3.5 opacity-50"/></button>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1 flex-wrap">
           {[['Snap',snapEnabled,()=>setSnapEnabled(s=>!s)],
             ['Smooth',aiSmooth,()=>setAiSmooth(s=>!s)],
             ['Metrics',showMetrics,()=>setShowMetrics(s=>!s)],
@@ -513,6 +586,10 @@ export default function CanvasWorkspace({
             className={`px-2 py-1 rounded-lg border transition flex items-center gap-1 ${mirrorMode?mirrorAc:'opacity-40 hover:opacity-70'}`}>
             <FlipHorizontal2 className="w-3 h-3"/> Mirror
           </button>
+          <button onClick={()=>setReferenceMode(s=>!s)} title="Onion-Skin Reference (G)"
+            className={`px-2 py-1 rounded-lg border transition flex items-center gap-1 ${referenceMode?refAc:'opacity-40 hover:opacity-70'}`}>
+            <Layers3 className="w-3 h-3"/> Reference
+          </button>
         </div>
       </div>
 
@@ -523,7 +600,7 @@ export default function CanvasWorkspace({
           <button key={z} onClick={()=>setZoomLevel(z)}
             className={`px-2.5 py-1 rounded-lg border transition ${zoomLevel===z?T.btn:'opacity-40 hover:opacity-70'}`}>{z}x</button>
         ))}
-        <span className="ml-auto text-[9px] opacity-30">{Math.round(totalScale*100)}% · Pinch to zoom on mobile</span>
+        <span className="ml-auto text-[9px] opacity-30">{Math.round(totalScale*100)}% · Pinch / Pen pressure supported</span>
       </div>
 
       {/* Canvas */}
@@ -534,6 +611,7 @@ export default function CanvasWorkspace({
           style={{ width:`${displaySize}px`, height:`${displaySize}px`, display:'block', cursor:'crosshair' }}
           onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing}
           onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
+          onPointerMove={handlePointerMove}
         />
       </div>
 
