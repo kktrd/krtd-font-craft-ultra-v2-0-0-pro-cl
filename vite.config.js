@@ -21,5 +21,8 @@ export default defineConfig({
       },
     },
   },
+  worker: {
+    format: 'es', // required: transliteration.worker.js uses ES `import`
+  },
   server: { port: 3000 },
 });

@@ -4,6 +4,9 @@ import { Loader2, X, User, Sparkles, WifiOff, RefreshCw } from 'lucide-react';
 
 import { getTokens }        from './utils/themeTokens.js';
 import { DEFAULT_METRICS }  from './utils/glyphData.js';
+import { useLiveFontPreview } from './hooks/useLiveFontPreview.js';
+import { computeStrokeProfile, suggestBrushSettings, ANCHOR_GLYPHS } from './utils/styleProfileEngine.js';
+import { FEATURE_FLAGS } from './utils/featureFlags.js';
 import {
   installKeyboardGuard, installContextMenuGuard,
   installDragGuard, printConsoleBranding, verifyStorageIntegrity,
@@ -70,6 +73,8 @@ export default function App() {
     } catch { return {}; }
   });
   const [metrics,      setMetrics]      = useState({ ...DEFAULT_METRICS });
+  const [useLivePreview, setUseLivePreview] = useState(false); // Part 3.1 toggle
+  const [styleProfile,   setStyleProfile]   = useState(null);  // Part 4.1 learned profile
   const [undoStack,    setUndoStack]    = useState([]);
   const [redoStack,    setRedoStack]    = useState([]);
   const [clipboardGlyph, setClipboardGlyph] = useState(null); // copy/paste between chars
@@ -119,6 +124,46 @@ export default function App() {
     }, 8000);
     return () => clearTimeout(snapshotTimerRef.current);
   }, [glyphs, selectedChar, isOnline, supabase, authUser, saveSnapshot]);
+
+  // ── Part 3.1 — Live Font Preview bridge (Canvas -> Text Studio) ──────────
+  const { previewReady, previewFamily, isCompiling: previewCompiling } =
+    useLiveFontPreview(fontName, metrics, glyphs);
+
+  // ── Part 3.2 — Metrics Engine -> Text Studio CSS line-height suggestion ──
+  const suggestedLineHeight = FEATURE_FLAGS.ENABLE_METRICS_CSS_BINDING
+    ? Math.max(1.2, Math.min(3.0,
+        +(((metrics.descender - metrics.ascender) /
+           (DEFAULT_METRICS.descender - DEFAULT_METRICS.ascender)) * 1.8).toFixed(1)
+      ))
+    : null;
+
+  // ── Part 3.3 — Quick Reference -> Canvas Studio routing ──────────────────
+  const jumpToCanvas = useCallback((char) => {
+    setSelectedChar(char);
+    setActiveTab('canvas');
+  }, []);
+
+  // ── Part 4.1 — Style Profile Learning ─────────────────────────────────────
+  const learnStyleProfile = useCallback(() => {
+    const profile = computeStrokeProfile(glyphs);
+    if (!profile) {
+      alert(`⚠️ අවම වශයෙන් anchor glyphs 3ක් draw කරන්න: ${ANCHOR_GLYPHS.join(', ')}`);
+      return;
+    }
+    const suggestion = suggestBrushSettings(profile);
+    setStyleProfile(suggestion);
+    setStrokeWidth(suggestion.strokeWidth);
+    setBrushMode(suggestion.brushMode);
+    alert(`🧠 Style Profile learned from ${profile.anchorsUsed.length} anchor(s)!\nWidth: ${suggestion.strokeWidth} · Mode: ${suggestion.brushMode}\nNew undrawn glyphs will auto-apply this style.`);
+  }, [glyphs]);
+
+  // Auto-apply learned profile when switching to a fresh, undrawn glyph
+  useEffect(() => {
+    if (!FEATURE_FLAGS.ENABLE_STYLE_PROFILE_LEARNING || !styleProfile) return;
+    if (glyphs[selectedChar]?.length) return; // already has content — don't override
+    setStrokeWidth(styleProfile.strokeWidth);
+    setBrushMode(styleProfile.brushMode);
+  }, [selectedChar, styleProfile, glyphs]);
 
   // ── Security install ─────────────────────────────────────────────────────
   useEffect(() => {
@@ -359,6 +404,8 @@ export default function App() {
     onCompileTTF: compileTTF,
     onExportSpecimenPDF: exportSpecimenPDF,
     onOpenHistory: openHistorySheet,
+    onLearnStyleProfile: learnStyleProfile,
+    styleProfile,
     T,
   };
 
@@ -547,7 +594,13 @@ export default function App() {
       {activeTab === 'text' && (
         <ErrorBoundary T={T}>
           <main className="max-w-[1600px] mx-auto p-3 md:p-5 lg:p-6">
-            <TextStudioWorkspace T={T} glyphs={glyphs} theme={theme} supabaseUrl={SB_URL} anonKey={SB_KEY}/>
+            <TextStudioWorkspace
+              T={T} glyphs={glyphs} theme={theme} supabaseUrl={SB_URL} anonKey={SB_KEY}
+              previewReady={previewReady} previewFamily={previewFamily} isCompiling={previewCompiling}
+              useLivePreview={useLivePreview} setUseLivePreview={setUseLivePreview}
+              onJumpToCanvas={jumpToCanvas}
+              suggestedLineHeight={suggestedLineHeight}
+            />
           </main>
         </ErrorBoundary>
       )}

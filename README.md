@@ -141,3 +141,51 @@ box with your existing anon key). Open the same font project in two browser tabs
 - Model: last-stroke-wins (simple, predictable — no operational transform)
 
 ---
+
+
+---
+
+## 🏗️ v3.0 — Safe Production Upgrade (Step 0 Architecture + Parts 1-4)
+
+### Step 0 — Rollback Architecture
+- `src/utils/featureFlags.js` — every V3 module is gated by a boolean flag.
+  Flip any flag to `false` and that module reverts to v2.0 PRO baseline
+  behavior instantly, with zero code deletion required.
+- v2.0 PRO core (themes, Supabase sync, JSON backup, Trie tokenizer) never
+  reads these flags — disabling everything always returns the exact v2.0
+  PRO experience.
+- Recommended Git flow: keep `main` as the live v2.0 PRO baseline, do this
+  work on a `v3-upgrade` branch, use Vercel's automatic Preview Deployment
+  per-branch URL for QA, merge only after manual verification.
+
+### Part 1 — Translation Engine
+| Feature | File | Notes |
+|---|---|---|
+| Web Worker transliteration | `workers/transliteration.worker.js`, `hooks/useTransliterationWorker.js` | Off-thread Singlish→Sinhala. Falls back to sync main-thread automatically if Workers are unsupported. |
+| Legacy ASCII converter | `utils/legacyEncoding.js` | **KRTD-Legacy-Reference-v1** — a clearly-labeled, internally-consistent reference scheme demonstrating real FM/DL structural mechanics (byte-per-glyph, pre-base reordering). **Not byte-verified against any specific commercial font** — see in-file disclaimer. |
+| ල/ළ disambiguation | `utils/disambiguationEngine.js` | Hand-curated heuristic suggestion chip. Never silently overwrites output. |
+
+### Part 2 — Typography Engineering
+| Feature | File | Notes |
+|---|---|---|
+| Winding-rule fix | `utils/fontCompiler.js` → `normalizeWinding()` | Real bug fix — every stroke-outline contour now winds consistently clockwise, preventing unpredictable solid/hollow rendering. |
+| Ligature-safe export | `utils/fontCompiler.js` → `resolveGlyphCodepoint()` | Fixes a real collision bug: multi-codepoint Atlas keys (e.g. "ක්ෂ") no longer clobber the base consonant's Unicode mapping — now routed to Private Use Area codepoints instead. Full GSUB/GPOS shaping was assessed as out-of-scope (see chat history) and intentionally not faked. |
+
+### Part 3 — Workspace Merger
+| Feature | File | Notes |
+|---|---|---|
+| Live Font Hot-Reload | `hooks/useLiveFontPreview.js` | Compiles current canvas glyphs to a base64 TTF, injects a live `@font-face`. Toggle in Text Studio. |
+| Metrics → CSS binding | `App.jsx` (`suggestedLineHeight`) | "Sync" button in Text Studio's typography toolbar — pulls a derived line-height from your Canvas Metrics sliders. Manual override always still works. |
+| Quick Reference routing | `App.jsx` (`jumpToCanvas`) | Click any Quick Reference card in Text Studio → jumps to Canvas Studio with that character selected. |
+
+### Part 4 — Cognitive Innovation
+| Feature | File | Notes |
+|---|---|---|
+| Style Profile Learning | `utils/styleProfileEngine.js` | Analyzes real stroke data from ක/ම/න/ර/ය to learn average width + contrast + curvature, then auto-applies matching brush defaults to undrawn glyphs. **Does not generate new letterforms** — that would require research-grade font-interpolation models, intentionally not faked. |
+
+### Explicitly NOT built (with reasoning)
+- **True OpenType GSUB/GPOS shaping compiler** — `opentype.js` has no high-level authoring API; building this safely requires AFDKO-style feature files, weeks of dedicated font-engineering work.
+- **Variable Font (fvar/gvar) compiler** — `opentype.js` doesn't support VF table authoring at all.
+- **Tesseract.js OCR-to-vector tracing** — Tesseract performs text recognition, not contour/shape tracing; using it for vector extraction would not work as described.
+
+These three remain open future-roadmap items if you want to pursue them with appropriately scoped tooling.

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sliders, RotateCcw, UploadCloud, DownloadCloud, Download, Upload, FileType2, History, FileText } from 'lucide-react';
+import { Sliders, RotateCcw, UploadCloud, DownloadCloud, Download, Upload, FileType2, History, FileText, Brain } from 'lucide-react';
 import { METRIC_LABELS } from '../../utils/glyphData.js';
 
 const METRIC_COLORS = {
@@ -15,7 +15,8 @@ export default function MetricsEngine({
   fontName, setFontName,
   onPushCloud, onPullCloud,
   onExportJSON, onImportJSON,
-  onCompileSVG, onCompileTTF, onOpenHistory, onExportSpecimenPDF, savedLabel, T,
+  onCompileSVG, onCompileTTF, onOpenHistory, onExportSpecimenPDF,
+  onLearnStyleProfile, styleProfile, savedLabel, T,
 }) {
   return (
     <div className="space-y-5">
@@ -88,6 +89,21 @@ export default function MetricsEngine({
           className={`w-full py-2.5 rounded-xl text-[10px] font-bold flex items-center justify-center gap-2 border transition ${T.accentBg}`}>
           <History className="w-3.5 h-3.5" /> View Saved Versions
         </button>
+      </div>
+
+      <div className={`pt-4 border-t space-y-2 ${T.divider}`}>
+        <h3 className={`text-[9px] font-bold uppercase tracking-widest flex items-center gap-1.5 mb-2 ${T.muted}`}>
+          <Brain className="w-3.5 h-3.5" /> Style Profile Learning
+        </h3>
+        <button onClick={onLearnStyleProfile}
+          className={`w-full py-2.5 rounded-xl text-[10px] font-bold flex items-center justify-center gap-2 border transition ${T.accentBg}`}>
+          <Brain className="w-3.5 h-3.5" /> Learn from ක/ම/න/ර/ය
+        </button>
+        {styleProfile && (
+          <p className="text-[8px] opacity-40 text-center px-2">
+            Active: width {styleProfile.strokeWidth} · {styleProfile.brushMode} mode — auto-applies to new glyphs
+          </p>
+        )}
       </div>
 
       <div className={`pt-4 border-t space-y-2 ${T.divider}`}>
