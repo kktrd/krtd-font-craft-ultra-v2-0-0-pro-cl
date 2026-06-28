@@ -1,0 +1,28 @@
+name: Supabase Keep-Alive Core
+
+on:
+  schedule:
+    # සෑම දින 3කට වරක්ම මධ්‍යම රාත්‍රී 12:00 ට (UTC) මෙම ක්‍රියාවලිය ස්වයංක්‍රීයව ක්‍රියාත්මක වේ.
+    - cron: '0 0 */3 * *'
+  workflow_dispatch: # GitHub Dashboard එක හරහා ඔබට අවශ්‍ය ඕනෑම වෙලාවක Run කර පරීක්ෂා කිරීමට හැකියාව ලබා දෙයි.
+
+jobs:
+  supabase_ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Keep-Alive Ping to KRTD Supabase Database
+        run: |
+          STATUS_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -X GET "${{ secrets.SUPABASE_URL }}/rest/v1/font_projects?select=font_name&limit=1" \
+            -H "apikey: ${{ secrets.SUPABASE_ANON_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_ANON_KEY }}")
+          
+          echo "Supabase Response Status Code: $STATUS_CODE"
+          
+          if [ "$STATUS_CODE" -eq 200 ] || [ "$STATUS_CODE" -eq 204 ]; then
+            echo "🔥 Success: Supabase DB is active and responding nomianlly!"
+            exit 0
+          else
+            echo "❌ Error: Failed to ping Supabase or project is paused. Received Status: $STATUS_CODE"
+            exit 1
+          fi
