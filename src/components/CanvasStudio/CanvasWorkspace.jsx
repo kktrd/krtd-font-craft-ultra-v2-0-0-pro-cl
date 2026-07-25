@@ -1,4 +1,5 @@
-import React, { useRef, useEffect, useCallback, useState } from 'react';
+import React, { useRef, useEffect, useCallback, useState, useId } from 'react';
+import { useToast } from '../Shared/NotificationProvider.jsx';
 import {
   Paintbrush, Eraser, Undo2, Redo2, Minus, Plus,
   Grid3X3, Sparkles, Layers, ChevronUp, Image,
@@ -56,6 +57,8 @@ export default function CanvasWorkspace({
   // ── Onion-skin reference overlay ─────────────────────────────────────────
   const [referenceMode, setReferenceMode] = useState(false);
   const [referenceChar, setReferenceChar] = useState('');
+  const referenceInputId = useId();
+  const { toast } = useToast();
 
   // ── Responsive container width ─────────────────────────────────────────
   useEffect(() => {
@@ -452,10 +455,10 @@ export default function CanvasWorkspace({
 
   const autoVariations = () => {
     const targets=GLYPH_VARIATION_RULES[selectedChar];
-    if (!targets||!glyphs[selectedChar]?.length) { alert(`⚠️ "${selectedChar}" glyph data නෑ.`); return; }
+    if (!targets||!glyphs[selectedChar]?.length) { toast(`⚠️ "${selectedChar}" glyph data නෑ — draw කරලා retry.`, 'error'); return; }
     const updated={...glyphs};
     targets.forEach(t=>{updated[t]=JSON.parse(JSON.stringify(glyphs[selectedChar]));});
-    setGlyphs(updated); alert(`✨ ${targets.join(', ')} copy වුනා!`);
+    setGlyphs(updated); toast(`✨ ${targets.join(', ')} copy වුනා!`, 'success');
   };
 
   // ── Active class helpers ───────────────────────────────────────────────
@@ -488,33 +491,33 @@ export default function CanvasWorkspace({
       {/* Title row */}
       <div className={`flex flex-wrap items-center justify-between gap-2 pb-3 border-b ${T.divider}`}>
         <div>
-          <span className="text-[9px] font-bold uppercase opacity-40">Canvas Workspace</span>
+          <span className="text-[9px] font-bold uppercase opacity-70">Canvas Workspace</span>
           <h2 className="text-xl font-black font-sinhala leading-tight">&ldquo;{selectedChar}&rdquo;
-            <span className="ml-2 text-sm opacity-30 font-sans font-normal">
+            <span className="ml-2 text-sm opacity-60 font-sans font-normal">
               U+{selectedChar.codePointAt(0).toString(16).toUpperCase().padStart(4,'0')}
             </span>
             {isPenRef.current && (
               <span className="ml-2 text-[9px] font-sans font-black text-violet-400 align-middle inline-flex items-center gap-0.5">
-                <Pen className="w-3 h-3"/> Pen
+                <Pen className="w-3 h-3" aria-hidden="true"/> Pen
               </span>
             )}
           </h2>
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
-          <div className={`flex p-0.5 rounded-xl border ${T.sub}`}>
-            <button onClick={()=>setIsEraser(false)} title="Brush (B)"
-              className={`p-2 rounded-lg transition ${!isEraser?brushAc:'opacity-35'}`}><Paintbrush className="w-4 h-4"/></button>
-            <button onClick={()=>setIsEraser(true)} title="Eraser (E)"
-              className={`p-2 rounded-lg transition ${isEraser?eraserAc:'opacity-35'}`}><Eraser className="w-4 h-4"/></button>
+          <div className={`flex p-0.5 rounded-xl border ${T.sub}`} role="group" aria-label="Drawing tool">
+            <button onClick={()=>setIsEraser(false)} title="Brush (B)" aria-label="Brush tool" aria-pressed={!isEraser}
+              className={`p-2 rounded-lg transition ${!isEraser?brushAc:'opacity-35'}`}><Paintbrush className="w-4 h-4" aria-hidden="true"/></button>
+            <button onClick={()=>setIsEraser(true)} title="Eraser (E)" aria-label="Eraser tool" aria-pressed={isEraser}
+              className={`p-2 rounded-lg transition ${isEraser?eraserAc:'opacity-35'}`}><Eraser className="w-4 h-4" aria-hidden="true"/></button>
           </div>
-          <button onClick={handleUndo} disabled={!undoStack.length} title="Undo (Ctrl+Z)"
-            className={`border p-2 rounded-xl disabled:opacity-20 transition ${T.btnGhost}`}><Undo2 className="w-4 h-4"/></button>
-          <button onClick={handleRedo} disabled={!redoStack.length} title="Redo (Ctrl+Y)"
-            className={`border p-2 rounded-xl disabled:opacity-20 transition ${T.btnGhost}`}><Redo2 className="w-4 h-4"/></button>
-          <button onClick={exportPNG} title="Export PNG"
-            className={`border p-2 rounded-xl transition ${T.btnGhost}`}><Image className="w-4 h-4"/></button>
-          <button onClick={()=>setShowShortcuts(s=>!s)} title="Shortcuts"
-            className={`border p-2 rounded-xl transition ${showShortcuts?T.accentBg:T.btnGhost}`}><Keyboard className="w-4 h-4"/></button>
+          <button onClick={handleUndo} disabled={!undoStack.length} title="Undo (Ctrl+Z)" aria-label="Undo last stroke"
+            className={`border p-2 rounded-xl disabled:opacity-20 transition ${T.btnGhost}`}><Undo2 className="w-4 h-4" aria-hidden="true"/></button>
+          <button onClick={handleRedo} disabled={!redoStack.length} title="Redo (Ctrl+Y)" aria-label="Redo last undone stroke"
+            className={`border p-2 rounded-xl disabled:opacity-20 transition ${T.btnGhost}`}><Redo2 className="w-4 h-4" aria-hidden="true"/></button>
+          <button onClick={exportPNG} title="Export PNG" aria-label="Export this glyph as PNG image"
+            className={`border p-2 rounded-xl transition ${T.btnGhost}`}><Image className="w-4 h-4" aria-hidden="true"/></button>
+          <button onClick={()=>setShowShortcuts(s=>!s)} title="Shortcuts" aria-label="Toggle keyboard shortcuts panel" aria-pressed={showShortcuts}
+            className={`border p-2 rounded-xl transition ${showShortcuts?T.accentBg:T.btnGhost}`}><Keyboard className="w-4 h-4" aria-hidden="true"/></button>
           <button onClick={clearCanvas}
             className={`text-[10px] px-3 py-2 rounded-xl font-bold transition border ${T.btnDanger}`}>Clear</button>
         </div>
@@ -523,18 +526,18 @@ export default function CanvasWorkspace({
       {/* Clipboard paste banner */}
       {clipboardGlyph?.length > 0 && (
         <div className={`flex items-center gap-3 p-2.5 rounded-xl border ${T.accentBg}`}>
-          <ClipboardPaste className="w-4 h-4 flex-shrink-0"/>
+          <ClipboardPaste className="w-4 h-4 flex-shrink-0" aria-hidden="true"/>
           <span className="text-[10px] font-bold flex-1">Clipboard ready — paste strokes into &ldquo;{selectedChar}&rdquo;</span>
           <button onClick={pasteClipboard}
             className={`text-[10px] font-black px-3 py-1.5 rounded-lg ${T.btn}`}>Paste</button>
-          <button onClick={onClearClipboard} className="opacity-40 hover:opacity-70 p-1"><span className="text-xs">✕</span></button>
+          <button onClick={onClearClipboard} aria-label="Dismiss clipboard" className="opacity-70 hover:opacity-100 p-1"><span className="text-xs" aria-hidden="true">✕</span></button>
         </div>
       )}
 
       {/* Mirror mode banner */}
       {mirrorMode && (
         <div className="flex items-center gap-3 p-2.5 rounded-xl border bg-pink-500/10 border-pink-500/30">
-          <FlipHorizontal2 className="w-4 h-4 flex-shrink-0 text-pink-500"/>
+          <FlipHorizontal2 className="w-4 h-4 flex-shrink-0 text-pink-500" aria-hidden="true"/>
           <span className="text-[10px] font-bold flex-1 text-pink-500">
             Mirror Mode ON — symmetric loops (ක, ට, ඩ) auto-draw on both sides
           </span>
@@ -544,16 +547,17 @@ export default function CanvasWorkspace({
       {/* Reference mode banner + char picker */}
       {referenceMode && (
         <div className="flex items-center gap-3 p-2.5 rounded-xl border bg-violet-500/10 border-violet-500/30">
-          <Layers3 className="w-4 h-4 flex-shrink-0 text-violet-500"/>
-          <span className="text-[10px] font-bold text-violet-500 flex-shrink-0">Reference:</span>
+          <Layers3 className="w-4 h-4 flex-shrink-0 text-violet-500" aria-hidden="true"/>
+          <label htmlFor={referenceInputId} className="text-[10px] font-bold text-violet-500 flex-shrink-0">Reference:</label>
           <input
+            id={referenceInputId}
             type="text" maxLength={1} value={referenceChar}
             onChange={e => setReferenceChar(e.target.value.trim())}
             placeholder="e.g. ක"
             autoCapitalize="none" autoCorrect="off" spellCheck={false}
             className="w-12 text-center font-sinhala font-black text-sm bg-transparent border border-violet-400/40 rounded-lg py-1 focus:outline-none text-violet-500"
           />
-          <span className="text-[9px] text-violet-400 flex-1">
+          <span className="text-[9px] text-violet-400 flex-1" role="status">
             {referenceChar && !glyphs[referenceChar]?.length ? 'මේ char එක draw කරලා නෑ' : 'ඝෝස්ට් overlay ලෙස පෙනේවි'}
           </span>
         </div>
@@ -561,46 +565,46 @@ export default function CanvasWorkspace({
 
       {/* Brush controls */}
       <div className={`flex flex-wrap items-center gap-x-3 gap-y-2 p-2.5 rounded-xl border text-[10px] font-black ${T.sub}`}>
-        <div className="flex items-center gap-1">
-          <span className="opacity-40">MODE:</span>
+        <div className="flex items-center gap-1" role="group" aria-label="Brush mode">
+          <span className="opacity-70">MODE:</span>
           {MODES.map(m=>(
-            <button key={m} onClick={()=>setBrushMode(m)}
-              className={`px-2 py-1 rounded-lg border transition capitalize ${brushMode===m?T.btn:'opacity-40 hover:opacity-70'}`}>{m}</button>
+            <button key={m} onClick={()=>setBrushMode(m)} aria-pressed={brushMode===m}
+              className={`px-2 py-1 rounded-lg border transition capitalize ${brushMode===m?T.btn:'opacity-70 hover:opacity-100'}`}>{m}</button>
           ))}
         </div>
-        <div className="flex items-center gap-1 ml-auto">
-          <span className="opacity-40">SIZE:</span>
-          <button onClick={()=>setStrokeWidth(w=>Math.max(2,w-2))} className="p-1"><Minus className="w-3.5 h-3.5 opacity-50"/></button>
-          <span className="font-mono w-5 text-center">{strokeWidth}</span>
-          <button onClick={()=>setStrokeWidth(w=>Math.min(48,w+2))} className="p-1"><Plus  className="w-3.5 h-3.5 opacity-50"/></button>
+        <div className="flex items-center gap-1 ml-auto" role="group" aria-label="Stroke size">
+          <span className="opacity-70">SIZE:</span>
+          <button onClick={()=>setStrokeWidth(w=>Math.max(2,w-2))} aria-label="Decrease stroke size" className="p-1"><Minus className="w-3.5 h-3.5 opacity-50" aria-hidden="true"/></button>
+          <span className="font-mono w-5 text-center" aria-live="polite">{strokeWidth}</span>
+          <button onClick={()=>setStrokeWidth(w=>Math.min(48,w+2))} aria-label="Increase stroke size" className="p-1"><Plus  className="w-3.5 h-3.5 opacity-50" aria-hidden="true"/></button>
         </div>
-        <div className="flex items-center gap-1 flex-wrap">
+        <div className="flex items-center gap-1 flex-wrap" role="group" aria-label="Canvas toggles">
           {[['Snap',snapEnabled,()=>setSnapEnabled(s=>!s)],
             ['Smooth',aiSmooth,()=>setAiSmooth(s=>!s)],
             ['Metrics',showMetrics,()=>setShowMetrics(s=>!s)],
             ['Ruler',showRuler,()=>setShowRuler(s=>!s)]].map(([l,a,fn])=>(
-            <button key={l} onClick={fn}
-              className={`px-2 py-1 rounded-lg border transition ${a?T.btn:'opacity-40 hover:opacity-70'}`}>{l}</button>
+            <button key={l} onClick={fn} aria-pressed={a}
+              className={`px-2 py-1 rounded-lg border transition ${a?T.btn:'opacity-70 hover:opacity-100'}`}>{l}</button>
           ))}
-          <button onClick={()=>setMirrorMode(s=>!s)} title="Mirror Mode (X)"
-            className={`px-2 py-1 rounded-lg border transition flex items-center gap-1 ${mirrorMode?mirrorAc:'opacity-40 hover:opacity-70'}`}>
-            <FlipHorizontal2 className="w-3 h-3"/> Mirror
+          <button onClick={()=>setMirrorMode(s=>!s)} title="Mirror Mode (X)" aria-pressed={mirrorMode}
+            className={`px-2 py-1 rounded-lg border transition flex items-center gap-1 ${mirrorMode?mirrorAc:'opacity-70 hover:opacity-100'}`}>
+            <FlipHorizontal2 className="w-3 h-3" aria-hidden="true"/> Mirror
           </button>
-          <button onClick={()=>setReferenceMode(s=>!s)} title="Onion-Skin Reference (G)"
-            className={`px-2 py-1 rounded-lg border transition flex items-center gap-1 ${referenceMode?refAc:'opacity-40 hover:opacity-70'}`}>
-            <Layers3 className="w-3 h-3"/> Reference
+          <button onClick={()=>setReferenceMode(s=>!s)} title="Onion-Skin Reference (G)" aria-pressed={referenceMode}
+            className={`px-2 py-1 rounded-lg border transition flex items-center gap-1 ${referenceMode?refAc:'opacity-70 hover:opacity-100'}`}>
+            <Layers3 className="w-3 h-3" aria-hidden="true"/> Reference
           </button>
         </div>
       </div>
 
       {/* Zoom */}
-      <div className={`flex items-center gap-1.5 p-2 rounded-xl border text-[10px] font-black ${T.sub}`}>
-        <span className="opacity-40 mr-1">ZOOM:</span>
+      <div className={`flex items-center gap-1.5 p-2 rounded-xl border text-[10px] font-black ${T.sub}`} role="group" aria-label="Zoom level">
+        <span className="opacity-70 mr-1">ZOOM:</span>
         {ZOOMS.map(z=>(
-          <button key={z} onClick={()=>setZoomLevel(z)}
-            className={`px-2.5 py-1 rounded-lg border transition ${zoomLevel===z?T.btn:'opacity-40 hover:opacity-70'}`}>{z}x</button>
+          <button key={z} onClick={()=>setZoomLevel(z)} aria-pressed={zoomLevel===z}
+            className={`px-2.5 py-1 rounded-lg border transition ${zoomLevel===z?T.btn:'opacity-70 hover:opacity-100'}`}>{z}x</button>
         ))}
-        <span className="ml-auto text-[9px] opacity-30">{Math.round(totalScale*100)}% · Pinch / Pen pressure supported</span>
+        <span className="ml-auto text-[9px] opacity-60">{Math.round(totalScale*100)}% · Pinch / Pen pressure supported</span>
       </div>
 
       {/* Canvas */}
@@ -608,6 +612,8 @@ export default function CanvasWorkspace({
         style={{ touchAction:'none', height:`${displaySize+4}px` }}>
         <canvas
           ref={canvasRef} width={CS} height={CS}
+          role="img"
+          aria-label={`Drawing canvas for character ${selectedChar}. Requires mouse, touch, or stylus input — not keyboard-operable.`}
           style={{ width:`${displaySize}px`, height:`${displaySize}px`, display:'block', cursor:'crosshair' }}
           onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing}
           onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
@@ -619,11 +625,11 @@ export default function CanvasWorkspace({
       <div className="grid grid-cols-2 gap-2">
         <button onClick={loadSkeleton}
           className={`py-2.5 text-[10px] font-bold rounded-xl border flex items-center justify-center gap-1.5 ${T.btnGhost}`}>
-          <Layers className="w-3.5 h-3.5"/> Skeleton Template
+          <Layers className="w-3.5 h-3.5" aria-hidden="true"/> Skeleton Template
         </button>
         <button onClick={autoVariations}
           className={`py-2.5 text-[10px] font-bold rounded-xl border flex items-center justify-center gap-1.5 ${T.accentBg}`}>
-          <Sparkles className="w-3.5 h-3.5"/> Auto Variations
+          <Sparkles className="w-3.5 h-3.5" aria-hidden="true"/> Auto Variations
         </button>
       </div>
 
@@ -631,11 +637,11 @@ export default function CanvasWorkspace({
       <div className="grid grid-cols-2 gap-2 md:hidden">
         <button onClick={onOpenAtlas}
           className={`py-2.5 text-[10px] font-bold rounded-xl border flex items-center justify-center gap-1.5 ${T.btnGhost}`}>
-          <Grid3X3 className="w-3.5 h-3.5"/> Atlas <ChevronUp className="w-3.5 h-3.5"/>
+          <Grid3X3 className="w-3.5 h-3.5" aria-hidden="true"/> Atlas <ChevronUp className="w-3.5 h-3.5" aria-hidden="true"/>
         </button>
         <button onClick={onOpenMetrics}
           className={`py-2.5 text-[10px] font-bold rounded-xl border flex items-center justify-center gap-1.5 ${T.btnGhost}`}>
-          <Ruler className="w-3.5 h-3.5"/> Metrics <ChevronUp className="w-3.5 h-3.5"/>
+          <Ruler className="w-3.5 h-3.5" aria-hidden="true"/> Metrics <ChevronUp className="w-3.5 h-3.5" aria-hidden="true"/>
         </button>
       </div>
     </div>

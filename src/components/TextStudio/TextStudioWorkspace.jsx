@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect, useId } from 'react';
 import {
   CloudLightning, Copy, Check, FileText, Edit3,
   AlignLeft, AlignCenter, AlignRight,
@@ -37,6 +37,11 @@ export default function TextStudioWorkspace({
   const [disambig,    setDisambig]    = useState(null); // {original, alternatives}
   const [encodingView, setEncodingView] = useState('unicode'); // 'unicode' | 'legacy'
   const [legacyInput,  setLegacyInput]  = useState('');
+
+  const singlishId = useId();
+  const sinhalaId   = useId();
+  const legacyOutId = useId();
+  const legacyInId  = useId();
 
   const cloudTimerRef    = useRef(null);
   const latestConvertId  = useRef(0);
@@ -143,7 +148,7 @@ export default function TextStudioWorkspace({
       <div className={`p-5 rounded-2xl border ${T.card}`}>
         <div className={`flex items-center justify-between pb-3 border-b mb-4 ${T.divider}`}>
           <div className="flex items-center gap-2.5">
-            <div className={`p-2 rounded-xl ${T.accentBg}`}><CloudLightning className="w-4 h-4"/></div>
+            <div className={`p-2 rounded-xl ${T.accentBg}`}><CloudLightning className="w-4 h-4" aria-hidden="true"/></div>
             <div>
               <h2 className="text-sm font-black tracking-tight">Singhela Professional Text Studio</h2>
               <p className="text-[10px] opacity-50 font-medium">
@@ -151,50 +156,51 @@ export default function TextStudioWorkspace({
               </p>
             </div>
           </div>
-          <div className="hidden sm:flex items-center gap-3 text-[9px] font-black opacity-30 uppercase tracking-widest">
-            <span className="flex items-center gap-1"><Monitor className="w-3 h-3"/> PC</span>
-            <span className="flex items-center gap-1"><Smartphone className="w-3 h-3"/> Mobile</span>
+          <div className="hidden sm:flex items-center gap-3 text-[9px] font-black opacity-60 uppercase tracking-widest">
+            <span className="flex items-center gap-1"><Monitor className="w-3 h-3" aria-hidden="true"/> PC</span>
+            <span className="flex items-center gap-1"><Smartphone className="w-3 h-3" aria-hidden="true"/> Mobile</span>
           </div>
         </div>
 
         {/* Typography toolbar */}
         <div className={`flex flex-wrap items-center gap-x-3 gap-y-2 p-3 rounded-xl border mb-4 text-[10px] font-black ${T.sub}`}>
-          <span className="opacity-40">TYPOGRAPHY:</span>
+          <span className="opacity-70">TYPOGRAPHY:</span>
 
           <div className="flex items-center gap-1.5">
-            <span className="opacity-40">Sz:</span>
-            <button onClick={() => setFontSize(s => Math.max(16, s-2))}><Minus className="w-3.5 h-3.5 opacity-50"/></button>
-            <span className="font-mono w-7 text-center">{fontSize}px</span>
-            <button onClick={() => setFontSize(s => Math.min(40, s+2))}><Plus  className="w-3.5 h-3.5 opacity-50"/></button>
+            <span className="opacity-70" id="font-size-label">Sz:</span>
+            <button onClick={() => setFontSize(s => Math.max(16, s-2))} aria-label="Decrease font size"><Minus className="w-3.5 h-3.5 opacity-50" aria-hidden="true"/></button>
+            <span className="font-mono w-7 text-center" aria-live="polite" aria-labelledby="font-size-label">{fontSize}px</span>
+            <button onClick={() => setFontSize(s => Math.min(40, s+2))} aria-label="Increase font size"><Plus  className="w-3.5 h-3.5 opacity-50" aria-hidden="true"/></button>
           </div>
 
-          <div className={`flex p-0.5 rounded-lg border ${T.sub}`}>
-            {[['left',<AlignLeft className="w-3.5 h-3.5"/>],['center',<AlignCenter className="w-3.5 h-3.5"/>],['right',<AlignRight className="w-3.5 h-3.5"/>]].map(([a,icon])=>(
-              <button key={a} onClick={()=>setAlign(a)}
+          <div className={`flex p-0.5 rounded-lg border ${T.sub}`} role="group" aria-label="Text alignment">
+            {[['left','Align left',<AlignLeft className="w-3.5 h-3.5" aria-hidden="true"/>],['center','Align center',<AlignCenter className="w-3.5 h-3.5" aria-hidden="true"/>],['right','Align right',<AlignRight className="w-3.5 h-3.5" aria-hidden="true"/>]].map(([a,label,icon])=>(
+              <button key={a} onClick={()=>setAlign(a)} aria-label={label} aria-pressed={align===a}
                 className={`p-1.5 rounded transition ${align===a?T.btn:'opacity-35 hover:opacity-60'}`}>{icon}</button>
             ))}
           </div>
 
           <div className="flex items-center gap-1.5">
-            <span className="opacity-40">LH:</span>
-            <button onClick={() => setLineHeight(h => Math.max(1.2, +(h-0.2).toFixed(1)))}><Minus className="w-3.5 h-3.5 opacity-50"/></button>
-            <span className="font-mono w-7 text-center">{lineHeight}</span>
-            <button onClick={() => setLineHeight(h => Math.min(3.0, +(h+0.2).toFixed(1)))}><Plus  className="w-3.5 h-3.5 opacity-50"/></button>
+            <span className="opacity-70" id="lh-label">LH:</span>
+            <button onClick={() => setLineHeight(h => Math.max(1.2, +(h-0.2).toFixed(1)))} aria-label="Decrease line height"><Minus className="w-3.5 h-3.5 opacity-50" aria-hidden="true"/></button>
+            <span className="font-mono w-7 text-center" aria-live="polite" aria-labelledby="lh-label">{lineHeight}</span>
+            <button onClick={() => setLineHeight(h => Math.min(3.0, +(h+0.2).toFixed(1)))} aria-label="Increase line height"><Plus  className="w-3.5 h-3.5 opacity-50" aria-hidden="true"/></button>
             {/* Part 3.2 — sync line-height from Canvas Metrics Engine */}
             {FEATURE_FLAGS.ENABLE_METRICS_CSS_BINDING && suggestedLineHeight && (
               <button
                 onClick={() => setLineHeight(suggestedLineHeight)}
                 title="Sync line-height from Canvas Metrics sliders"
+                aria-label="Sync line-height from Canvas Metrics sliders"
                 className={`ml-1 px-1.5 py-0.5 rounded border text-[8px] flex items-center gap-0.5 ${T.accentBg}`}
               >
-                <ArrowLeftRight className="w-2.5 h-2.5"/> Sync
+                <ArrowLeftRight className="w-2.5 h-2.5" aria-hidden="true"/> Sync
               </button>
             )}
           </div>
 
           {tierB && (
-            <span className="flex items-center gap-1 text-emerald-400">
-              <Cloud className="w-3 h-3"/> Cloud B Active
+            <span className="flex items-center gap-1 text-emerald-400" role="status">
+              <Cloud className="w-3 h-3" aria-hidden="true"/> Cloud B Active
             </span>
           )}
 
@@ -209,9 +215,9 @@ export default function TextStudioWorkspace({
         {FEATURE_FLAGS.ENABLE_LIVE_FONT_PREVIEW && (
           <div className={`flex items-center gap-3 p-2.5 rounded-xl border mb-4 ${previewReady ? T.accentBg : T.sub}`}>
             {isCompiling
-              ? <Loader2 className="w-4 h-4 flex-shrink-0 animate-spin"/>
-              : <TypeIcon className="w-4 h-4 flex-shrink-0"/>}
-            <span className="text-[10px] font-bold flex-1">
+              ? <Loader2 className="w-4 h-4 flex-shrink-0 motion-safe:animate-spin" aria-hidden="true"/>
+              : <TypeIcon className="w-4 h-4 flex-shrink-0" aria-hidden="true"/>}
+            <span className="text-[10px] font-bold flex-1" role="status">
               {previewReady
                 ? 'Live Font Preview ready — render output using YOUR drawn glyphs'
                 : 'Draw glyphs in Canvas Studio to enable Live Font Preview'}
@@ -219,7 +225,9 @@ export default function TextStudioWorkspace({
             <button
               onClick={() => setUseLivePreview(!useLivePreview)}
               disabled={!previewReady}
-              className={`text-[9px] font-black px-3 py-1.5 rounded-lg flex-shrink-0 transition disabled:opacity-30 ${useLivePreview ? T.btn : T.btnGhost}`}
+              aria-pressed={useLivePreview}
+              aria-label={`Live Font Preview ${useLivePreview ? 'on' : 'off'}`}
+              className={`text-[9px] font-black px-3 py-1.5 rounded-lg flex-shrink-0 transition disabled:opacity-60 ${useLivePreview ? T.btn : T.btnGhost}`}
             >
               {useLivePreview ? 'ON' : 'OFF'}
             </button>
@@ -230,21 +238,22 @@ export default function TextStudioWorkspace({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
           <div className={`p-4 rounded-xl border flex flex-col gap-2 ${T.sub}`}>
-            <label className="text-[9px] font-black opacity-40 uppercase tracking-widest">Singlish Input</label>
+            <label htmlFor={singlishId} className="text-[9px] font-black opacity-70 uppercase tracking-widest">Singlish Input</label>
             <textarea
+              id={singlishId}
               rows={6} value={singlish}
               onChange={e => handleSinglishChange(e.target.value)}
               placeholder={"mama kolambata yanawa\nkru → කෘ  |  dra → ද්‍ර  |  shree → ශ්‍රී\ngnya → ඥ  |  mmb → ඹ  |  nng → ඟ"}
               autoCapitalize="none" autoCorrect="off" autoComplete="off" spellCheck={false}
               className={`w-full text-sm font-bold p-3 rounded-xl focus:outline-none border transition resize-none leading-relaxed ${T.input}`}
             />
-            <div className="text-[9px] opacity-40 flex items-center gap-1">
-              <Cpu className="w-3 h-3"/> Off-thread Web Worker engine — large pastes won't freeze the UI.
+            <div className="text-[9px] opacity-70 flex items-center gap-1">
+              <Cpu className="w-3 h-3" aria-hidden="true"/> Off-thread Web Worker engine — large pastes won't freeze the UI.
             </div>
           </div>
 
           <div className={`p-4 rounded-xl border flex flex-col gap-2 ${T.sub}`}>
-            <label className="text-[9px] font-black opacity-40 uppercase tracking-widest">
+            <label htmlFor={sinhalaId} className="text-[9px] font-black opacity-70 uppercase tracking-widest">
               Sinhala Output & Live Editor
             </label>
 
@@ -254,20 +263,21 @@ export default function TextStudioWorkspace({
 
             {/* Part 1.2 — disambiguation chip */}
             {disambig && (
-              <div className={`flex flex-wrap items-center gap-1.5 p-2 rounded-xl border ${T.sub}`}>
-                <Sparkles className="w-3 h-3 opacity-40 flex-shrink-0"/>
-                <span className="text-[9px] opacity-40 flex-shrink-0">Did you mean:</span>
+              <div className={`flex flex-wrap items-center gap-1.5 p-2 rounded-xl border ${T.sub}`} role="group" aria-label="Spelling alternatives">
+                <Sparkles className="w-3 h-3 opacity-70 flex-shrink-0" aria-hidden="true"/>
+                <span className="text-[9px] opacity-70 flex-shrink-0">Did you mean:</span>
                 {disambig.alternatives.map((alt) => (
-                  <button key={alt.word} onClick={() => applyDisambiguation(alt.word)} title={alt.hint}
+                  <button key={alt.word} onClick={() => applyDisambiguation(alt.word)} title={alt.hint} aria-label={`${alt.word} — ${alt.hint}`}
                     className={`text-[10px] font-bold px-2 py-1 rounded-lg border transition font-sinhala ${T.accentBg}`}>
                     {alt.word}
                   </button>
                 ))}
-                <button onClick={() => setDisambig(null)} className="ml-auto opacity-30 hover:opacity-60"><X className="w-3 h-3"/></button>
+                <button onClick={() => setDisambig(null)} aria-label="Dismiss spelling suggestions" className="ml-auto opacity-60 hover:opacity-90"><X className="w-3 h-3" aria-hidden="true"/></button>
               </div>
             )}
 
             <textarea
+              id={sinhalaId}
               rows={6} value={sinhala}
               onChange={e => { setSinhala(e.target.value); runPrediction(e.target.value); }}
               placeholder="සිංහල output..."
@@ -280,18 +290,18 @@ export default function TextStudioWorkspace({
             />
 
             <div className="flex flex-wrap gap-2">
-              <button onClick={copyToClipboard} disabled={!sinhala}
-                className={`flex-1 min-w-[80px] py-2.5 text-[10px] font-black rounded-xl flex items-center justify-center gap-1.5 transition disabled:opacity-30 ${copied?'bg-emerald-600 text-white':T.btn}`}>
-                {copied?<Check className="w-3.5 h-3.5"/>:<Copy className="w-3.5 h-3.5"/>}
-                {copied?'Copied!':'Copy'}
+              <button onClick={copyToClipboard} disabled={!sinhala} aria-label={copied ? 'Copied to clipboard' : 'Copy Sinhala text to clipboard'}
+                className={`flex-1 min-w-[80px] py-2.5 text-[10px] font-black rounded-xl flex items-center justify-center gap-1.5 transition disabled:opacity-60 ${copied?'bg-emerald-600 text-white':T.btn}`}>
+                {copied?<Check className="w-3.5 h-3.5" aria-hidden="true"/>:<Copy className="w-3.5 h-3.5" aria-hidden="true"/>}
+                <span aria-live="polite">{copied?'Copied!':'Copy'}</span>
               </button>
-              <button onClick={() => exportFile('txt')} disabled={!sinhala}
-                className={`flex-1 min-w-[60px] py-2.5 text-[10px] font-bold rounded-xl border flex items-center justify-center gap-1.5 transition disabled:opacity-30 ${T.btnGhost}`}>
-                <FileText className="w-3.5 h-3.5"/> .txt
+              <button onClick={() => exportFile('txt')} disabled={!sinhala} aria-label="Export as plain text file"
+                className={`flex-1 min-w-[60px] py-2.5 text-[10px] font-bold rounded-xl border flex items-center justify-center gap-1.5 transition disabled:opacity-60 ${T.btnGhost}`}>
+                <FileText className="w-3.5 h-3.5" aria-hidden="true"/> .txt
               </button>
-              <button onClick={() => exportFile('md')} disabled={!sinhala}
-                className={`flex-1 min-w-[60px] py-2.5 text-[10px] font-bold rounded-xl border flex items-center justify-center gap-1.5 transition disabled:opacity-30 ${T.btnGhost}`}>
-                <FileText className="w-3.5 h-3.5"/> .md
+              <button onClick={() => exportFile('md')} disabled={!sinhala} aria-label="Export as Markdown file"
+                className={`flex-1 min-w-[60px] py-2.5 text-[10px] font-bold rounded-xl border flex items-center justify-center gap-1.5 transition disabled:opacity-60 ${T.btnGhost}`}>
+                <FileText className="w-3.5 h-3.5" aria-hidden="true"/> .md
               </button>
             </div>
           </div>
@@ -301,7 +311,7 @@ export default function TextStudioWorkspace({
       {/* Live preview */}
       {sinhala && (
         <div className={`p-5 rounded-2xl border ${T.card}`}>
-          <h3 className="text-[9px] font-black uppercase tracking-widest opacity-40 mb-3">Live Preview</h3>
+          <h3 className="text-[9px] font-black uppercase tracking-widest opacity-70 mb-3">Live Preview</h3>
           <div className={`p-5 rounded-xl border min-h-[60px] ${!useLivePreview ? 'font-sinhala' : ''} ${T.sub} ${T.accent}`}
             style={{
               fontSize: `${fontSize}px`, textAlign: align, lineHeight: effectiveLineHeight, direction: 'ltr',
@@ -319,33 +329,33 @@ export default function TextStudioWorkspace({
       {FEATURE_FLAGS.ENABLE_LEGACY_ENCODING && (
         <div className={`p-5 rounded-2xl border ${T.card}`}>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-[9px] font-black uppercase tracking-widest opacity-40 flex items-center gap-1.5">
-              <ArrowLeftRight className="w-3.5 h-3.5"/> Legacy ASCII Encoding — {LEGACY_SCHEME_NAME}
+            <h3 className="text-[9px] font-black uppercase tracking-widest opacity-70 flex items-center gap-1.5">
+              <ArrowLeftRight className="w-3.5 h-3.5" aria-hidden="true"/> Legacy ASCII Encoding — {LEGACY_SCHEME_NAME}
             </h3>
-            <div className={`flex p-0.5 rounded-lg border text-[9px] font-black ${T.sub}`}>
+            <div className={`flex p-0.5 rounded-lg border text-[9px] font-black ${T.sub}`} role="group" aria-label="Encoding view">
               {['unicode', 'legacy'].map(v => (
-                <button key={v} onClick={() => setEncodingView(v)}
-                  className={`px-2.5 py-1 rounded capitalize transition ${encodingView===v ? T.btn : 'opacity-40'}`}>{v}</button>
+                <button key={v} onClick={() => setEncodingView(v)} aria-pressed={encodingView===v}
+                  className={`px-2.5 py-1 rounded capitalize transition ${encodingView===v ? T.btn : 'opacity-70'}`}>{v}</button>
               ))}
             </div>
           </div>
 
-          <p className="text-[9px] opacity-30 mb-3 leading-relaxed">{LEGACY_SCHEME_DISCLAIMER}</p>
+          <p className="text-[9px] opacity-60 mb-3 leading-relaxed">{LEGACY_SCHEME_DISCLAIMER}</p>
 
           {encodingView === 'legacy' && (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               <div className={`p-3 rounded-xl border ${T.sub}`}>
-                <label className="text-[9px] font-black opacity-40 uppercase tracking-widest block mb-1.5">
+                <label htmlFor={legacyOutId} className="text-[9px] font-black opacity-70 uppercase tracking-widest block mb-1.5">
                   Unicode → Legacy (auto, from output above)
                 </label>
-                <textarea readOnly rows={3} value={legacyOutput}
+                <textarea id={legacyOutId} readOnly rows={3} value={legacyOutput}
                   className={`w-full text-sm font-mono p-2.5 rounded-lg border resize-none ${T.input}`}/>
               </div>
               <div className={`p-3 rounded-xl border ${T.sub}`}>
-                <label className="text-[9px] font-black opacity-40 uppercase tracking-widest block mb-1.5">
+                <label htmlFor={legacyInId} className="text-[9px] font-black opacity-70 uppercase tracking-widest block mb-1.5">
                   Legacy → Unicode (paste legacy text here)
                 </label>
-                <textarea rows={3} value={legacyInput}
+                <textarea id={legacyInId} rows={3} value={legacyInput}
                   onChange={e => handleLegacyPaste(e.target.value)}
                   placeholder="Paste KRTD-Legacy-Reference encoded text…"
                   className={`w-full text-sm font-mono p-2.5 rounded-lg border resize-none ${T.input}`}/>
@@ -358,9 +368,9 @@ export default function TextStudioWorkspace({
       {/* Singlish cheat-sheet — Part 3.3: click jumps to Canvas Studio */}
       <div className={`p-5 rounded-2xl border ${T.card}`}>
         <div className="flex items-center justify-between mb-3">
-          <h3 className="text-[9px] font-black uppercase tracking-widest opacity-40">Quick Reference</h3>
+          <h3 className="text-[9px] font-black uppercase tracking-widest opacity-70">Quick Reference</h3>
           {FEATURE_FLAGS.ENABLE_QUICK_REF_ROUTING && onJumpToCanvas && (
-            <span className="text-[9px] opacity-30">Click any card to edit in Canvas Studio →</span>
+            <span className="text-[9px] opacity-60">Click any card to edit in Canvas Studio →</span>
           )}
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
@@ -370,10 +380,11 @@ export default function TextStudioWorkspace({
           ].map(([k,v])=>(
             <button key={k}
               onClick={() => FEATURE_FLAGS.ENABLE_QUICK_REF_ROUTING && onJumpToCanvas?.(v)}
+              aria-label={`${k} maps to ${v}.${onJumpToCanvas ? ' Click to edit in Canvas Studio.' : ''}`}
               className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border text-xs transition text-left ${T.sub} ${onJumpToCanvas ? 'hover:scale-[1.03] cursor-pointer' : ''}`}>
-              <span className="font-mono font-bold opacity-60">{k}</span>
-              <span className="opacity-25">→</span>
-              <span className={`font-sinhala font-black ${T.accent}`}>{v}</span>
+              <span className="font-mono font-bold opacity-60" aria-hidden="true">{k}</span>
+              <span className="opacity-25" aria-hidden="true">→</span>
+              <span className={`font-sinhala font-black ${T.accent}`} aria-hidden="true">{v}</span>
             </button>
           ))}
         </div>

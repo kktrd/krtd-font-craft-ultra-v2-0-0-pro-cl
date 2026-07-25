@@ -101,3 +101,57 @@ input[type="range"]::-webkit-slider-thumb {
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
+
+/* ── Accessibility: visible focus rings for keyboard users ─────────
+   Many interactive elements use `focus:outline-none` to suppress the
+   default browser ring (intentional, for visual consistency), so we
+   replace it globally with a themed :focus-visible ring instead of
+   leaving keyboard users with NO indicator at all. :focus-visible only
+   fires for keyboard/programmatic focus, not mouse clicks — mouse users
+   see no change. */
+:focus-visible {
+  outline: 2px solid var(--krtd-focus-color, #38bdf8);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid var(--krtd-focus-color, #38bdf8);
+  outline-offset: 2px;
+}
+
+/* ── Accessibility: skip-to-content link ────────────────────────────
+   Visually hidden until keyboard-focused, then jumps to the top of the
+   visible viewport so keyboard users can bypass the header/tab bar. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 10px 16px;
+  background: #1e1b4b;
+  color: #fff;
+  font-weight: 800;
+  font-size: 13px;
+  border-radius: 0 0 8px 0;
+}
+.skip-link:focus {
+  left: 0;
+}
+
+/* ── Accessibility: respect prefers-reduced-motion ──────────────────
+   Disables decorative animation/transition for users with vestibular
+   disorders or motion sensitivity, while keeping the app fully usable
+   (no animation = no information loss, purely cosmetic in this app). */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}

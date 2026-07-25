@@ -189,3 +189,49 @@ box with your existing anon key). Open the same font project in two browser tabs
 - **Tesseract.js OCR-to-vector tracing** — Tesseract performs text recognition, not contour/shape tracing; using it for vector extraction would not work as described.
 
 These three remain open future-roadmap items if you want to pursue them with appropriately scoped tooling.
+
+
+---
+
+## ♿ Performance & Accessibility Audit (v3.1)
+
+Real audit, real fixes — every item below was confirmed present in the
+codebase before fixing (grep counts, not assumptions), and re-validated
+after (Node syntax check + functional round-trip tests where applicable).
+
+### Performance
+| Issue Found | Fix |
+|---|---|
+| `opentype.js` (~100-150KB) + `jspdf` (~280KB+) bundled into initial JS payload for every user, even those who never export | Converted to `await import()` dynamic imports inside `compileTTF`, `exportSpecimenPDF`, and `useLiveFontPreview` — now separate, lazily-fetched chunks |
+| `AtlasMatrix` (90+ glyph buttons) re-rendered on every unrelated parent state change | Wrapped in `React.memo` |
+| Vite worker output format unspecified | Explicit `worker: { format: 'es' }` added — required since `transliteration.worker.js` uses ES `import` |
+
+### Accessibility — confirmed gaps (grep audit before fixing)
+- **0** `aria-label` attributes anywhere in the codebase
+- **8** instances of `focus:outline-none` with **zero** replacement focus style
+- **78** instances of `opacity-30`/`opacity-40` on informational text (real contrast risk)
+- **0** `prefers-reduced-motion` handling
+- **0** modal focus-trapping (Help, Login, Delete-confirm dialogs were all "leaky" — keyboard users could Tab behind them)
+- **14** icon-only buttons relying solely on `title` (unreliable for screen readers)
+
+### Accessibility — fixes applied
+- Global `:focus-visible` ring (themed, all 3 color modes) in `index.css`
+- `@media (prefers-reduced-motion: reduce)` override + `motion-safe:` Tailwind variants on all `animate-pulse`/`animate-spin`
+- `useFocusTrap` hook — Tab-cycle containment, Escape-to-close, focus-restore-on-close — applied to Help modal, Login modal, Delete-confirm modal, and all `BottomSheetDrawer` instances (each now `role="dialog"` `aria-modal="true"` `aria-labelledby`)
+- `aria-label` added to every icon-only interactive element across all 11 components that have them; decorative icons marked `aria-hidden="true"`
+- `aria-pressed`/`aria-checked`/`role="group"`/`role="radiogroup"` added to all toggle/segmented-control buttons (brush mode, theme switcher, zoom levels, encoding view, etc.)
+- All previously placeholder-only inputs now have a properly associated `<label htmlFor>` via `useId()` (font name, search, Singlish/Sinhala/Legacy textareas, reference-char picker)
+- Range sliders (Metrics Engine) get `aria-label` + `aria-valuetext`
+- Custom toast (Admin) and transient status text (copy feedback, live-preview status) wrapped in `role="status"`/`aria-live="polite"`
+- `SkipLink` component — keyboard users can bypass the header on every page load
+- Contrast: bulk-upgraded `opacity-30→60` / `opacity-40→70` on all informational text (74 instances, 12 files) — then caught and fixed a real regression this introduced (12 buttons whose hover state had collapsed to match the resting state, since both used the same old opacity value) by restoring a proper hover delta
+
+### Honest, documented limitation
+The freehand drawing canvas itself is **not keyboard-operable** — this is an
+inherent constraint shared by every visual vector-drawing tool (Glyphs,
+FontForge, Illustrator included), not something fixable without abandoning
+freehand input entirely. The canvas carries a descriptive `aria-label` so
+screen-reader users at least know what they've encountered, and every
+*surrounding* control (brush/eraser, undo/redo, metrics, zoom, mode toggles)
+is fully keyboard-operable with documented shortcuts (`B E M S R X G [ ]
+1-4 Ctrl+Z/Y`, visible via the in-app Shortcuts panel).

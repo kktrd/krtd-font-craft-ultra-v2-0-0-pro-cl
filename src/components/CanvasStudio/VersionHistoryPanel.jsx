@@ -18,8 +18,8 @@ export default function VersionHistoryPanel({
   if (!supabaseConnected) {
     return (
       <div className={`p-6 rounded-xl border text-center space-y-2 ${T.sub}`}>
-        <WifiOff className="w-6 h-6 mx-auto opacity-30" />
-        <p className="text-xs opacity-40">
+        <WifiOff className="w-6 h-6 mx-auto opacity-60" />
+        <p className="text-xs opacity-70">
           Version History cloud connection අවශ්‍යයි — Supabase configure කරලා නැත්නම් මේක inactive.
         </p>
       </div>
@@ -30,24 +30,25 @@ export default function VersionHistoryPanel({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className={`text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 ${T.muted}`}>
-          <History className="w-3.5 h-3.5" /> History — &ldquo;{selectedChar}&rdquo;
+          <History className="w-3.5 h-3.5" aria-hidden="true" /> History — &ldquo;{selectedChar}&rdquo;
         </h3>
         <button
           onClick={onSaveCheckpoint}
+          aria-label="Save a named checkpoint of the current character"
           className={`text-[9px] font-black px-2.5 py-1.5 rounded-lg border flex items-center gap-1 transition ${T.accentBg}`}
         >
-          <Tag className="w-3 h-3" /> Save Checkpoint
+          <Tag className="w-3 h-3" aria-hidden="true" /> Save Checkpoint
         </button>
       </div>
 
       {loading && (
         <div className="flex justify-center py-8">
-          <Loader2 className={`w-5 h-5 animate-spin ${T.accent}`} />
+          <Loader2 className={`w-5 h-5 motion-safe:animate-spin ${T.accent}`} role="status" aria-label="Loading version history" />
         </div>
       )}
 
       {!loading && history.length === 0 && (
-        <p className="text-center py-8 text-xs opacity-30">
+        <p className="text-center py-8 text-xs opacity-60">
           මේ character එකට saved versions නෑ.<br/>Draw කරලා cloud sync වුණාම auto-save වෙයි.
         </p>
       )}
@@ -56,21 +57,22 @@ export default function VersionHistoryPanel({
         {history.map((h, i) => (
           <div key={h.id} className={`flex items-center gap-3 p-3 rounded-xl border ${T.sub}`}>
             <div className={`p-1.5 rounded-lg flex-shrink-0 ${T.accentBg}`}>
-              <Clock className="w-3.5 h-3.5" />
+              <Clock className="w-3.5 h-3.5" aria-hidden="true" />
             </div>
             <div className="flex-1 min-w-0">
               <div className="text-[10px] font-bold truncate">
                 {h.label || (i === 0 ? 'Latest auto-save' : 'Auto-save')}
               </div>
-              <div className="text-[9px] opacity-40 mt-0.5">
+              <div className="text-[9px] opacity-70 mt-0.5">
                 {timeAgo(h.created_at)} · {h.stroke_count} stroke{h.stroke_count !== 1 ? 's' : ''}
               </div>
             </div>
             <button
               onClick={() => onRestore(h)}
+              aria-label={`Restore version from ${timeAgo(h.created_at)}, ${h.stroke_count} strokes`}
               className={`text-[9px] font-black px-2.5 py-1.5 rounded-lg flex items-center gap-1 flex-shrink-0 transition ${T.btn}`}
             >
-              <RotateCcw className="w-3 h-3" /> Restore
+              <RotateCcw className="w-3 h-3" aria-hidden="true" /> Restore
             </button>
           </div>
         ))}

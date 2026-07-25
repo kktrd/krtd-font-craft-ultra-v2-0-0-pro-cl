@@ -10,7 +10,7 @@ export default function Footer({ T }) {
           <Copyright className="w-3 h-3 flex-shrink-0" />
           <span>© 2026 KRTD Font Craft Ultra v2.0.0 PRO · Prabhath Lokuge</span>
         </div>
-        <div className="flex flex-wrap items-center justify-center gap-4 text-[9px] font-bold tracking-widest uppercase opacity-40">
+        <div className="flex flex-wrap items-center justify-center gap-4 text-[9px] font-bold tracking-widest uppercase opacity-70">
           <span className="flex items-center gap-1.5">
             <Shield className="w-3 h-3" />
             Unauthorized duplication prohibited

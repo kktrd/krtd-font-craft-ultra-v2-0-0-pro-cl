@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useId } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { Loader2, X, User, Sparkles, WifiOff, RefreshCw } from 'lucide-react';
 
@@ -14,15 +14,21 @@ import {
 import { useNetworkStatus }   from './hooks/useNetworkStatus.js';
 import { useAutoSave }        from './hooks/useAutoSave.js';
 import { useInstallPrompt }   from './hooks/useInstallPrompt.js';
+import { useFocusTrap }       from './hooks/useFocusTrap.js';
 import { useRealtimeCollab }  from './hooks/useRealtimeCollab.js';
 import { useVersionHistory }  from './hooks/useVersionHistory.js';
-import { downloadTTF }        from './utils/fontCompiler.js';
-import { downloadSpecimenPDF } from './utils/specimenGenerator.js';
+// NOTE: fontCompiler.js (opentype.js) and specimenGenerator.js (jspdf) are
+// intentionally NOT imported here. They're dynamically import()'d inside
+// compileTTF/exportSpecimenPDF below — these libs are only needed when the
+// user actually clicks Export, so users who never export never pay their
+// bundle cost on initial page load (real measurable perf win).
 
 import Header               from './components/Shared/Header.jsx';
 import Footer               from './components/Shared/Footer.jsx';
 import ErrorBoundary        from './components/Shared/ErrorBoundary.jsx';
 import CollabPresence       from './components/Shared/CollabPresence.jsx';
+import SkipLink             from './components/Shared/SkipLink.jsx';
+import { NotificationProvider, useToast, useConfirm } from './components/Shared/NotificationProvider.jsx';
 import CanvasWorkspace      from './components/CanvasStudio/CanvasWorkspace.jsx';
 import AtlasMatrix          from './components/CanvasStudio/AtlasMatrix.jsx';
 import MetricsEngine        from './components/CanvasStudio/MetricsEngine.jsx';
@@ -38,10 +44,11 @@ const supabase = (SB_URL && SB_URL.includes('supabase.co'))
   ? createClient(SB_URL, SB_KEY) : null;
 
 // ── Root App ─────────────────────────────────────────────────────────────────
-export default function App() {
+function AppInner() {
   // ── Theme & navigation ───────────────────────────────────────────────────
   const [theme,     setTheme]     = useState(() => localStorage.getItem('krtd_theme') || 'comfort');
   const [activeTab, setActiveTab] = useState('canvas');
+  const [hasVisitedTextStudio, setHasVisitedTextStudio] = useState(false);
   const T = getTokens(theme);
 
   // ── Auth ─────────────────────────────────────────────────────────────────
@@ -88,7 +95,15 @@ export default function App() {
 
   const fileInputRef = useRef(null);
   const { savedLabel, markSaved } = useAutoSave();
+  const { toast }   = useToast();
+  const { confirm, prompt: promptDialog } = useConfirm();
   const { canInstall, promptInstall } = useInstallPrompt();
+  const helpModalRef  = useFocusTrap(showHelp,  () => setShowHelp(false));
+  const loginModalRef = useFocusTrap(showLogin, () => setShowLogin(false));
+  const helpTitleId   = useId();
+  const loginTitleId  = useId();
+  const loginEmailId  = useId();
+  const loginPassId   = useId();
 
   // ── Realtime collaboration ────────────────────────────────────────────────
   const handleRemoteGlyphUpdate = useCallback((char, strokes) => {
@@ -126,8 +141,14 @@ export default function App() {
   }, [glyphs, selectedChar, isOnline, supabase, authUser, saveSnapshot]);
 
   // ── Part 3.1 — Live Font Preview bridge (Canvas -> Text Studio) ──────────
+  // Perf: only starts background compilation once the user has actually
+  // opened Text Studio — pure Canvas Studio users pay zero compilation cost.
+  useEffect(() => {
+    if (activeTab === 'text') setHasVisitedTextStudio(true);
+  }, [activeTab]);
+
   const { previewReady, previewFamily, isCompiling: previewCompiling } =
-    useLiveFontPreview(fontName, metrics, glyphs);
+    useLiveFontPreview(fontName, metrics, glyphs, hasVisitedTextStudio);
 
   // ── Part 3.2 — Metrics Engine -> Text Studio CSS line-height suggestion ──
   const suggestedLineHeight = FEATURE_FLAGS.ENABLE_METRICS_CSS_BINDING
@@ -147,14 +168,14 @@ export default function App() {
   const learnStyleProfile = useCallback(() => {
     const profile = computeStrokeProfile(glyphs);
     if (!profile) {
-      alert(`⚠️ අවම වශයෙන් anchor glyphs 3ක් draw කරන්න: ${ANCHOR_GLYPHS.join(', ')}`);
+      toast(`⚠️ අවම වශයෙන් anchor glyphs 3ක් draw කරන්න: ${ANCHOR_GLYPHS.join(', ')}`, 'error');
       return;
     }
     const suggestion = suggestBrushSettings(profile);
     setStyleProfile(suggestion);
     setStrokeWidth(suggestion.strokeWidth);
     setBrushMode(suggestion.brushMode);
-    alert(`🧠 Style Profile learned from ${profile.anchorsUsed.length} anchor(s)!\nWidth: ${suggestion.strokeWidth} · Mode: ${suggestion.brushMode}\nNew undrawn glyphs will auto-apply this style.`);
+    toast(`🧠 Style Profile learned! Width: ${suggestion.strokeWidth} · Mode: ${suggestion.brushMode}`, 'success');
   }, [glyphs]);
 
   // Auto-apply learned profile when switching to a fresh, undrawn glyph
@@ -224,31 +245,31 @@ export default function App() {
       }, { onConflict: 'font_name' });
       if (error) throw error;
       markSaved();
-      if (showAlert) alert(`☁️ "${fontName}" cloud save වුනා!`);
+      if (showAlert) toast(`☁️ "${fontName}" cloud save වුනා!`, 'success');
     } catch (err) {
       // silently mirror to localStorage on fail — no work loss
       localStorage.setItem('krtd_cloud_pending', JSON.stringify({ fontName, metrics, glyphs }));
-      if (showAlert) alert(`❌ Cloud error: ${err.message}\n💾 Local copy saved.`);
+      if (showAlert) toast(`❌ Cloud error: ${err.message} — 💾 local copy saved.`, 'error');
     }
   };
 
   const pushToCloud  = () => { setCloudLoading(true); syncToCloud(true).finally(() => setCloudLoading(false)); };
 
   const pullFromCloud = async () => {
-    if (!supabase) { alert('⚠️ Cloud configure කරලා නෑ.'); return; }
+    if (!supabase) { toast('⚠️ Cloud configure කරලා නෑ.', 'error'); return; }
     setCloudLoading(true);
     try {
       const { data, error } = await supabase
         .from('font_projects').select('*').eq('font_name', fontName).single();
       if (error) {
-        if (error.code === 'PGRST116') alert(`🔍 "${fontName}" cloud හි නෑ.`);
+        if (error.code === 'PGRST116') toast(`🔍 "${fontName}" cloud හි නෑ.`, 'info');
         else throw error;
       } else if (data) {
         if (data.metrics) setMetrics(data.metrics);
         if (data.glyphs)  setGlyphs(data.glyphs);
-        alert(`✨ "${fontName}" sync වුනා!`);
+        toast(`✨ "${fontName}" sync වුනා!`, 'success');
       }
-    } catch (err) { alert(`❌ Pull error: ${err.message}`); }
+    } catch (err) { toast(`❌ Pull error: ${err.message}`, 'error'); }
     finally { setCloudLoading(false); }
   };
 
@@ -314,9 +335,9 @@ export default function App() {
           if (d.fontName) setFontName(d.fontName);
           if (d.metrics)  setMetrics(d.metrics);
           setGlyphs(d.glyphs);
-          alert('🎯 Backup loaded!');
-        } else alert('❌ Invalid backup file.');
-      } catch { alert('❌ JSON parse error.'); }
+          toast('🎯 Backup loaded!', 'success');
+        } else toast('❌ Invalid backup file.', 'error');
+      } catch { toast('❌ JSON parse error.', 'error'); }
     };
     reader.readAsText(file);
     e.target.value = '';
@@ -324,7 +345,7 @@ export default function App() {
 
   // ── SVG Font compiler ────────────────────────────────────────────────────
   const compileSVG = () => {
-    if (!Object.keys(glyphs).length) { alert('⚠️ Glyphs නෑ.'); return; }
+    if (!Object.keys(glyphs).length) { toast('⚠️ Glyphs නෑ — draw කරලා retry කරන්න.', 'error'); return; }
     const asc  = 500 - metrics.baseline;
     const desc = -(metrics.descender - metrics.baseline);
     let svg = `<?xml version="1.0" standalone="no"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">\n<defs>\n<font id="${fontName}" horiz-adv-x="500">\n<font-face font-family="${fontName}" units-per-em="500" ascent="${asc}" descent="${desc}"/>\n`;
@@ -348,22 +369,30 @@ export default function App() {
     document.body.appendChild(a); a.click(); a.remove();
   };
 
-  // ── Real TTF compiler (opentype.js) ───────────────────────────────────────
-  const compileTTF = () => {
+  // ── Real TTF compiler (opentype.js) — lazy-loaded on first use ───────────
+  const compileTTF = async () => {
+    setCloudLoading(true); // reuse existing overlay as a generic "working" indicator
     try {
+      const { downloadTTF } = await import('./utils/fontCompiler.js');
       const count = downloadTTF(fontName, metrics, glyphs);
-      alert(`🎉 "${fontName}.ttf" compiled — ${count} glyph(s)! Install on PC/Mac to use in Word, Canva, Photoshop.`);
+      toast(`🎉 "${fontName}.ttf" — ${count} glyphs compiled! Install to use in Word, Canva, Photoshop.`, 'success', 6000);
     } catch (err) {
-      alert(`❌ TTF compile error: ${err.message}`);
+      toast(`❌ TTF compile error: ${err.message}`, 'error');
+    } finally {
+      setCloudLoading(false);
     }
   };
 
-  const exportSpecimenPDF = () => {
+  const exportSpecimenPDF = async () => {
+    setCloudLoading(true);
     try {
+      const { downloadSpecimenPDF } = await import('./utils/specimenGenerator.js');
       const count = downloadSpecimenPDF(fontName, glyphs, metrics);
-      alert(`📄 Specimen sheet generated — ${count} glyph(s)!`);
+      toast(`📄 Specimen sheet generated — ${count} glyphs!`, 'success');
     } catch (err) {
-      alert(`❌ PDF export error: ${err.message}`);
+      toast(`❌ PDF export error: ${err.message}`, 'error');
+    } finally {
+      setCloudLoading(false);
     }
   };
 
@@ -375,15 +404,16 @@ export default function App() {
 
   const handleSaveCheckpoint = async () => {
     const strokes = glyphs[selectedChar];
-    if (!strokes?.length) { alert('⚠️ මේ character එකේ draw කරපු දේවල් නෑ.'); return; }
-    const label = window.prompt('Checkpoint name (e.g. "Final shape v1"):', '') || null;
+    if (!strokes?.length) { toast('⚠️ මේ character එකේ draw කරපු දේවල් නෑ.', 'error'); return; }
+    const label = await promptDialog('Checkpoint name (e.g. "Final shape v1")') || null;
     const ok = await saveSnapshot(selectedChar, strokes, authUser?.id, label);
-    if (ok) { alert('📸 Checkpoint saved!'); loadHistory(selectedChar); }
-    else alert('❌ Save failed — cloud connection check කරන්න.');
+    if (ok) { toast('📸 Checkpoint saved!', 'success'); loadHistory(selectedChar); }
+    else toast('❌ Save failed — cloud connection check කරන්න.', 'error');
   };
 
-  const handleRestoreVersion = (snapshot) => {
-    if (!window.confirm(`මේ version එක (${new Date(snapshot.created_at).toLocaleString()}) restore කරන්නද? දැනට ඇති strokes replace වෙයි.`)) return;
+  const handleRestoreVersion = async (snapshot) => {
+    const ok = await confirm('Restore this version?', `${new Date(snapshot.created_at).toLocaleString()} — ${snapshot.stroke_count} strokes. දැනට ඇති strokes replace වෙයි.`);
+    if (!ok) return;
     const prev = glyphs[selectedChar] || [];
     setUndoStack(u => [...u.slice(-49), { char: selectedChar, strokes: prev }]);
     setRedoStack([]);
@@ -406,6 +436,9 @@ export default function App() {
     onOpenHistory: openHistorySheet,
     onLearnStyleProfile: learnStyleProfile,
     styleProfile,
+    selectedChar,
+    glyphs,
+    onExportAllPNGs: exportAllPNGs,
     T,
   };
 
@@ -415,6 +448,8 @@ export default function App() {
       className={`min-h-screen font-sans transition-colors duration-200 ${T.bg}`}
       style={{ overscrollBehavior: 'none' }}
     >
+      <SkipLink />
+
       {/* Cloud overlay */}
       {cloudLoading && (
         <div className="fixed inset-0 bg-slate-950/75 backdrop-blur-md z-50 flex flex-col items-center justify-center gap-3">
@@ -442,11 +477,18 @@ export default function App() {
       {/* Help modal */}
       {showHelp && (
         <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className={`max-w-lg w-full p-6 rounded-2xl border shadow-2xl ${T.card}`}>
+          <div
+            ref={helpModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={helpTitleId}
+            tabIndex={-1}
+            className={`max-w-lg w-full p-6 rounded-2xl border shadow-2xl ${T.card}`}
+          >
             <div className="flex justify-between items-center mb-5">
               <div className="flex items-center gap-2">
-                <Sparkles className={`w-5 h-5 animate-pulse ${T.accent}`}/>
-                <h3 className="text-lg font-black">KRTD Font Craft — Guide</h3>
+                <Sparkles className={`w-5 h-5 motion-safe:animate-pulse ${T.accent}`} aria-hidden="true"/>
+                <h3 id={helpTitleId} className="text-lg font-black">KRTD Font Craft — Guide</h3>
               </div>
               <span className={`text-[9px] font-black px-2 py-0.5 rounded border ${T.accentBg}`}>v2.0 PRO</span>
             </div>
@@ -485,31 +527,44 @@ export default function App() {
       {/* Login modal */}
       {showLogin && (
         <div className="fixed inset-0 bg-slate-950/85 backdrop-blur-md z-50 flex items-center justify-center p-4">
-          <div className={`max-w-sm w-full p-6 rounded-2xl border shadow-2xl ${T.card}`}>
+          <div
+            ref={loginModalRef}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={loginTitleId}
+            tabIndex={-1}
+            className={`max-w-sm w-full p-6 rounded-2xl border shadow-2xl ${T.card}`}
+          >
             <div className="flex justify-between items-center mb-5">
               <div className="flex items-center gap-2">
-                <User className={`w-5 h-5 ${T.accent}`}/>
-                <h3 className="font-black">Login</h3>
+                <User className={`w-5 h-5 ${T.accent}`} aria-hidden="true"/>
+                <h3 id={loginTitleId} className="font-black">Login</h3>
               </div>
-              <button onClick={() => setShowLogin(false)} className="p-1.5 rounded-lg opacity-40 hover:opacity-70">
-                <X className="w-4 h-4"/>
+              <button onClick={() => setShowLogin(false)} aria-label="Close login dialog" className="p-1.5 rounded-lg opacity-70 hover:opacity-100">
+                <X className="w-4 h-4" aria-hidden="true"/>
               </button>
             </div>
             <div className="space-y-3">
-              <input type="email" placeholder="Email" value={loginEmail}
-                onChange={e => setLoginEmail(e.target.value)}
-                autoCapitalize="none" autoCorrect="off" spellCheck={false}
-                className={`w-full border px-4 py-2.5 rounded-xl text-sm focus:outline-none ${T.input}`}
-              />
-              <input type="password" placeholder="Password" value={loginPass}
-                onChange={e => setLoginPass(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && handleLogin()}
-                className={`w-full border px-4 py-2.5 rounded-xl text-sm focus:outline-none ${T.input}`}
-              />
-              {loginError && <p className="text-xs text-red-500">{loginError}</p>}
+              <div>
+                <label htmlFor={loginEmailId} className="sr-only">Email address</label>
+                <input id={loginEmailId} type="email" placeholder="Email" value={loginEmail}
+                  onChange={e => setLoginEmail(e.target.value)}
+                  autoCapitalize="none" autoCorrect="off" spellCheck={false}
+                  className={`w-full border px-4 py-2.5 rounded-xl text-sm focus:outline-none ${T.input}`}
+                />
+              </div>
+              <div>
+                <label htmlFor={loginPassId} className="sr-only">Password</label>
+                <input id={loginPassId} type="password" placeholder="Password" value={loginPass}
+                  onChange={e => setLoginPass(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleLogin()}
+                  className={`w-full border px-4 py-2.5 rounded-xl text-sm focus:outline-none ${T.input}`}
+                />
+              </div>
+              {loginError && <p role="alert" className="text-xs text-red-500">{loginError}</p>}
               <button onClick={handleLogin} disabled={authLoading}
                 className={`w-full py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 ${T.btn}`}>
-                {authLoading ? <Loader2 className="w-4 h-4 animate-spin"/> : 'Login'}
+                {authLoading ? <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true"/> : 'Login'}
               </button>
             </div>
           </div>
@@ -536,7 +591,7 @@ export default function App() {
       {/* ── CANVAS TAB ───────────────────────────────────────────────────── */}
       {activeTab === 'canvas' && (
         <ErrorBoundary T={T}>
-          <main className="max-w-[1600px] mx-auto p-3 md:p-5 lg:p-6">
+          <main id="main-content" className="max-w-[1600px] mx-auto p-3 md:p-5 lg:p-6">
             <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
 
               <aside className={`hidden md:block md:col-span-3 p-4 rounded-2xl border lg:max-h-[830px] overflow-y-auto ${T.card}`}>
@@ -593,7 +648,7 @@ export default function App() {
       {/* ── TEXT STUDIO TAB ──────────────────────────────────────────────── */}
       {activeTab === 'text' && (
         <ErrorBoundary T={T}>
-          <main className="max-w-[1600px] mx-auto p-3 md:p-5 lg:p-6">
+          <main id="main-content" className="max-w-[1600px] mx-auto p-3 md:p-5 lg:p-6">
             <TextStudioWorkspace
               T={T} glyphs={glyphs} theme={theme} supabaseUrl={SB_URL} anonKey={SB_KEY}
               previewReady={previewReady} previewFamily={previewFamily} isCompiling={previewCompiling}
@@ -608,7 +663,7 @@ export default function App() {
       {/* ── ADMIN TAB ────────────────────────────────────────────────────── */}
       {activeTab === 'admin' && (
         <ErrorBoundary T={T}>
-          <main className="max-w-[1200px] mx-auto p-3 md:p-5 lg:p-6">
+          <main id="main-content" className="max-w-[1200px] mx-auto p-3 md:p-5 lg:p-6">
             <AdminDashboard supabase={supabase} authUser={authUser} onLoginClick={() => setShowLogin(true)} onLogout={handleLogout} glyphs={glyphs} T={T}/>
           </main>
         </ErrorBoundary>
@@ -616,5 +671,13 @@ export default function App() {
 
       <Footer T={T}/>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <NotificationProvider>
+      <AppInner />
+    </NotificationProvider>
   );
 }
