@@ -7,6 +7,7 @@ import { DEFAULT_METRICS }  from './utils/glyphData.js';
 import { useLiveFontPreview } from './hooks/useLiveFontPreview.js';
 import { computeStrokeProfile, suggestBrushSettings, ANCHOR_GLYPHS } from './utils/styleProfileEngine.js';
 import { FEATURE_FLAGS } from './utils/featureFlags.js';
+import { exportAllPNGsAsZip } from './utils/exportAllPNGs.js';
 import {
   installKeyboardGuard, installContextMenuGuard,
   installDragGuard, printConsoleBranding, verifyStorageIntegrity,
@@ -419,6 +420,15 @@ function AppInner() {
     setRedoStack([]);
     setGlyphs(prevGlyphs => ({ ...prevGlyphs, [selectedChar]: snapshot.strokes }));
     setShowHistory(false);
+  };
+
+  const exportAllPNGs = async () => {
+    try {
+      const count = await exportAllPNGsAsZip(fontName, glyphs);
+      toast(`📦 ${count} glyph PNG${count === 1 ? '' : 's'} exported as ZIP!`, 'success');
+    } catch (err) {
+      toast(`❌ PNG export error: ${err.message}`, 'error');
+    }
   };
 
   // ── Common sidebar props ─────────────────────────────────────────────────
