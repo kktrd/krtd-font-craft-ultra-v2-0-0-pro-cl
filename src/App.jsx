@@ -7,6 +7,7 @@ import { DEFAULT_METRICS }  from './utils/glyphData.js';
 import { useLiveFontPreview } from './hooks/useLiveFontPreview.js';
 import { computeStrokeProfile, suggestBrushSettings, ANCHOR_GLYPHS } from './utils/styleProfileEngine.js';
 import { FEATURE_FLAGS } from './utils/featureFlags.js';
+import { shortVersionLabel } from './utils/versionInfo.js';
 import { exportAllPNGsAsZip } from './utils/exportAllPNGs.js';
 import {
   installKeyboardGuard, installContextMenuGuard,
@@ -500,7 +501,7 @@ function AppInner() {
                 <Sparkles className={`w-5 h-5 motion-safe:animate-pulse ${T.accent}`} aria-hidden="true"/>
                 <h3 id={helpTitleId} className="text-lg font-black">KRTD Font Craft — Guide</h3>
               </div>
-              <span className={`text-[9px] font-black px-2 py-0.5 rounded border ${T.accentBg}`}>v2.0 PRO</span>
+              <span className={`text-[9px] font-black px-2 py-0.5 rounded border ${T.accentBg}`}>{shortVersionLabel()}</span>
             </div>
             <div className="space-y-3 text-sm">
               {[

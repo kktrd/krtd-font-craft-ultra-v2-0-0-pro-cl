@@ -10,6 +10,7 @@ import { globalTrie } from '../../utils/trieEngine.js';
 import { fetchCloudSuggestions } from '../../utils/predictionEngine.js';
 import { useTransliterationWorker } from '../../hooks/useTransliterationWorker.js';
 import { unicodeToLegacy, legacyToUnicode, LEGACY_SCHEME_NAME, LEGACY_SCHEME_DISCLAIMER } from '../../utils/legacyEncoding.js';
+import { shortVersionLabel } from '../../utils/versionInfo.js';
 import { getDisambiguationSuggestions } from '../../utils/disambiguationEngine.js';
 import { FEATURE_FLAGS } from '../../utils/featureFlags.js';
 import SuggestionBar from './SuggestionBar.jsx';
@@ -115,7 +116,7 @@ export default function TextStudioWorkspace({
   const exportFile = (ext) => {
     if (!sinhala) return;
     const ismd  = ext === 'md';
-    const body  = ismd ? `# සිංහල ලේඛනය\n\n${sinhala}\n\n---\n*KRTD Font Craft Ultra v2.0.0 PRO*` : sinhala;
+    const body  = ismd ? `# සිංහල ලේඛනය\n\n${sinhala}\n\n---\n*KRTD Font Craft Ultra ${shortVersionLabel()}*` : sinhala;
     const mime  = ismd ? 'text/markdown;charset=utf-8' : 'text/plain;charset=utf-8';
     const blob  = new Blob([body], { type: mime });
     const a     = document.createElement('a');

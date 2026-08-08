@@ -363,6 +363,15 @@ export default function CanvasWorkspace({
   const handleTouchStart = useCallback((e) => {
     if (e.touches.length===2) {
       e.preventDefault();
+      // A second finger touching down means the user is switching to a
+      // pinch gesture — cancel any single-finger draw that may already be
+      // in progress (e.g. the first finger moved slightly before the
+      // second one landed). Without this, stopDrawing() at the end of the
+      // pinch would still see leftover points in strokeRef and silently
+      // commit a stray, unintended partial stroke to the glyph.
+      isDrawingRef.current = false;
+      strokeRef.current = [];
+      lastPtRef.current = null;
       pinchRef.current = {
         dist: Math.hypot(e.touches[0].clientX-e.touches[1].clientX, e.touches[0].clientY-e.touches[1].clientY),
         zoom: zoomLevel,

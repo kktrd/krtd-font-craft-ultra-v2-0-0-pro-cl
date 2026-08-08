@@ -235,3 +235,52 @@ screen-reader users at least know what they've encountered, and every
 *surrounding* control (brush/eraser, undo/redo, metrics, zoom, mode toggles)
 is fully keyboard-operable with documented shortcuts (`B E M S R X G [ ]
 1-4 Ctrl+Z/Y`, visible via the in-app Shortcuts panel).
+
+---
+
+## 🔬 Deep Structural Audit + Version Auto-Sync (v3.2)
+
+### Deep audit — 2 real bugs found and fixed
+No JS bundler/linter was available in the build environment, so a custom
+Python static-analysis engine was built (import/export graph, undefined-
+reference detection, component prop-contract verification, React Hooks
+rules, theme-token audit — 8 phases total) and run against all 43 source
+files. This surfaced two genuine, non-obvious bugs:
+
+| Bug | Root cause | Fix |
+|---|---|---|
+| Realtime collab could silently drop a user's own edit | `useRealtimeCollab.js` used a single shared boolean to suppress re-broadcasting an applied remote update — but a remote edit to character X could "poison" the flag and swallow the *next* local broadcast for a completely unrelated character | Replaced with a TTL-bounded, per-character `Map<char, timestamp>` — a skip-entry can only suppress the one immediate echo it was created for |
+| Pinch-to-zoom could commit a stray stroke | `CanvasWorkspace.jsx`: if a user's first finger moved even slightly before a second finger touched down to pinch-zoom, the leftover single-finger draw state was never cleared, so `stopDrawing()` could commit that stray partial stroke on release | Second-finger touchdown now explicitly cancels any in-progress single-finger draw state |
+
+Several bugs were also found and fixed *in the analyzer itself* along the
+way (multi-declarator `const`, nested-paren default values, arrow functions
+nested inside `.map()`/`Promise()`, JSX `=>` containing a literal `>`
+character that broke naive tag matching) — documented transparently rather
+than silently patched, since a "rock solid" audit should show its work.
+
+### Version auto-sync — single source of truth
+Previously, the version number ("v2.0.0 PRO") was **hardcoded separately in
+5 different files** (Header, Footer, Help modal, Admin panel, console
+branding, exported `.md` file footer) — and they had already drifted out of
+sync with each other (some said "v2.0", others "v2.0.0") before this fix.
+
+Now: **`package.json`'s `"version"` field is the only place version lives.**
+Bumping it is the *only* manual step ever needed — every UI location
+updates automatically, with zero risk of drift, ever again.
+
+- `vite.config.js` reads `package.json` at build time and injects
+  `__APP_VERSION__` via Vite's `define` config.
+- It also injects `__BUILD_SHA__` (from Vercel's automatic
+  `VERCEL_GIT_COMMIT_SHA` env var — no configuration needed, changes on
+  *every single deploy* with no manual step at all) and `__BUILD_DATE__`.
+- `src/utils/versionInfo.js` exposes these as `shortVersionLabel()`
+  (Header/Help — "v3.2.0 PRO"), `fullVersionLine()` (Footer/Admin
+  copyright), and `buildStamp()` (Admin diagnostics — "v3.2.0 · a1b2c3d ·
+  2026-08-07", showing exactly which commit is live).
+- Local dev (`npm run dev`, no Vercel env) safely falls back to
+  `BUILD_SHA = 'dev'` via a `typeof` guard — verified to throw no error
+  even when `define` hasn't run.
+
+**To release a new version:** edit one line in `package.json`, commit, push.
+That's it — nothing else to remember, nowhere else to hunt.
+

@@ -40,7 +40,29 @@ export function useRealtimeCollab(supabase, fontName, selectedChar, onRemoteGlyp
   const [collaborators, setCollaborators] = useState([]);
   const channelRef       = useRef(null);
   const identityRef      = useRef(loadOrCreateIdentity());
-  const skipBroadcastRef = useRef(false);
+  // Per-character, TTL-bounded skip map (NOT a plain Set, NOT a single shared
+  // boolean): when a remote update for char X is applied locally, only a
+  // broadcast attempt for THAT SAME char X, arriving WITHIN A SHORT WINDOW,
+  // should be suppressed (it's the immediate echo of applying that same
+  // remote data into local state). A single shared boolean was a real bug —
+  // it could be consumed by an unrelated broadcast for whatever character
+  // the user currently has selected, silently swallowing their own genuine
+  // edit. A plain per-char Set (no TTL) fixed that but introduced a subtler
+  // staleness bug: if the user later switches TO that same character and
+  // makes a genuinely NEW edit — possibly much later — the leftover skip
+  // entry (never consumed, since the local broadcast-trigger effect only
+  // fires for the currently-selected character) would wrongly suppress that
+  // fresh, unrelated edit too. The TTL bounds the entry's lifetime so it can
+  // only ever suppress the one immediate echo it was created for.
+  const skipBroadcastCharsRef = useRef(new Map()); // char -> timestamp
+  const SKIP_TTL_MS = 2000;
+
+  const shouldSkipAndConsume = (char) => {
+    const ts = skipBroadcastCharsRef.current.get(char);
+    if (ts === undefined) return false;
+    skipBroadcastCharsRef.current.delete(char); // always consume on check — never linger
+    return (Date.now() - ts) < SKIP_TTL_MS;
+  };
 
   // ── Subscribe to channel for this font project ──────────────────────────
   useEffect(() => {
@@ -61,7 +83,7 @@ export function useRealtimeCollab(supabase, fontName, selectedChar, onRemoteGlyp
 
     channel.on('broadcast', { event: 'glyph-update' }, ({ payload }) => {
       if (!payload || payload.senderId === identityRef.current.id) return;
-      skipBroadcastRef.current = true;
+      skipBroadcastCharsRef.current.set(payload.char, Date.now());
       onRemoteGlyphUpdate?.(payload.char, payload.strokes);
     });
 
@@ -85,7 +107,7 @@ export function useRealtimeCollab(supabase, fontName, selectedChar, onRemoteGlyp
 
   // ── Broadcast a local glyph change to peers ──────────────────────────────
   const broadcastGlyphUpdate = useCallback((char, strokes) => {
-    if (skipBroadcastRef.current) { skipBroadcastRef.current = false; return; }
+    if (shouldSkipAndConsume(char)) return;
     channelRef.current?.send({
       type: 'broadcast',
       event: 'glyph-update',

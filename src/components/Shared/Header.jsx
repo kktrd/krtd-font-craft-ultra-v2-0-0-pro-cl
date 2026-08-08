@@ -1,5 +1,6 @@
 import React from 'react';
 import { Sun, Moon, Eye, Wifi, WifiOff, HelpCircle, User, LogOut, Sparkles, Download, Users } from 'lucide-react';
+import { shortVersionLabel } from '../../utils/versionInfo.js';
 
 export default function Header({
   theme, setTheme, activeTab, setActiveTab,
@@ -32,7 +33,7 @@ export default function Header({
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-sm font-black tracking-tight leading-none">KRTD FONT CRAFT ULTRA</h1>
-              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded border flex-shrink-0 ${T.accentBg}`}>v2.0 PRO</span>
+              <span className={`text-[9px] font-black px-1.5 py-0.5 rounded border flex-shrink-0 ${T.accentBg}`}>{shortVersionLabel()}</span>
             </div>
             <p className="text-[9px] opacity-70 font-medium hidden sm:block leading-none mt-0.5">
               Sinhala Font Studio · TTF Export · Mirror Draw · Realtime Collab

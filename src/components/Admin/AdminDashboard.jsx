@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useId } from 'react';
 import { useFocusTrap } from '../../hooks/useFocusTrap.js';
+import { fullVersionLine, buildStamp } from '../../utils/versionInfo.js';
 import {
   Database, FileText, Users, Palette, Wifi, RefreshCw, Trash2,
   Lock, LogOut, Loader2, Shield, Activity, AlertTriangle,
@@ -318,10 +319,15 @@ export default function AdminDashboard({ supabase, authUser, onLoginClick, onLog
       {/* Copyright footer */}
       <div className={`p-4 rounded-2xl border flex items-start gap-3 ${T.sub}`}>
         <Shield className="w-4 h-4 opacity-60 flex-shrink-0 mt-0.5" aria-hidden="true"/>
-        <p className="text-[9px] opacity-60 leading-relaxed">
-          © 2026 KRTD Font Craft Ultra v2.0.0 PRO — Prabhath Lokuge. Admin console access is logged.
-          Unauthorized access or redistribution is strictly prohibited.
-        </p>
+        <div className="space-y-1">
+          <p className="text-[9px] opacity-60 leading-relaxed">
+            {fullVersionLine()}. Admin console access is logged.
+            Unauthorized access or redistribution is strictly prohibited.
+          </p>
+          <p className="text-[8px] font-mono opacity-30" title="Auto-generated on every deploy — confirms exactly which build is live">
+            Build: {buildStamp()}
+          </p>
+        </div>
       </div>
     </div>
   );

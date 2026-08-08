@@ -1,10 +1,11 @@
 /**
- * KRTD Security & Copyright Protection Module v2.0
+ * KRTD Security & Copyright Protection Module
  * © 2026 Prabhath Lokuge / KRTD Studio. All rights reserved.
  * Unauthorized duplication or redistribution is strictly prohibited.
  */
+import { APP_VERSION, EDITION, BUILD_SHA, buildStamp } from './versionInfo.js';
 
-const BUILD_SIGNATURE = 'KRTD-FCU-2.0.0-PRO';
+const BUILD_SIGNATURE = `KRTD-FCU-${APP_VERSION}-${EDITION}`;
 const COPYRIGHT_YEAR  = 2026;
 const AUTHOR          = 'Prabhath Lokuge';
 
@@ -56,9 +57,9 @@ export function printConsoleBranding() {
     'color:#92400e; font-size:11px; font-weight:600; padding:4px 8px;',
     'color:#6b7280; font-size:10px; padding:2px 8px;',
   ];
-  console.log('%c KRTD FONT CRAFT ULTRA v2.0.0 PRO ', styles[0]);
+  console.log('%c KRTD FONT CRAFT ULTRA v' + APP_VERSION + ' ' + EDITION + ' ', styles[0]);
   console.log('%c © ' + COPYRIGHT_YEAR + ' ' + AUTHOR + ' | All Rights Reserved ', styles[1]);
-  console.log('%c Build: ' + BUILD_SIGNATURE + ' | Unauthorized use is prohibited. ', styles[2]);
+  console.log('%c Build: ' + buildStamp() + ' | Unauthorized use is prohibited. ', styles[2]);
 }
 
 /** Obfuscated session token to detect cloned sessions */
@@ -81,4 +82,4 @@ export function verifyStorageIntegrity(glyphs) {
   }
 }
 
-export const COPYRIGHT_NOTICE = `© ${COPYRIGHT_YEAR} KRTD Font Craft Ultra v2.0.0 PRO — ${AUTHOR}. Unauthorized code duplication or redistribution is strictly prohibited under applicable copyright law.`;
+export const COPYRIGHT_NOTICE = `© ${COPYRIGHT_YEAR} KRTD Font Craft Ultra v${APP_VERSION} ${EDITION} — ${AUTHOR}. Unauthorized code duplication or redistribution is strictly prohibited under applicable copyright law.`;

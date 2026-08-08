@@ -1,8 +1,26 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { readFileSync } from 'fs';
+
+// ── Single source of truth: package.json's "version" field ─────────────────
+const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'));
+
+// ── Build-time metadata, auto-populated on every deploy, zero manual steps ─
+// Vercel exposes these as plain (non-VITE_-prefixed) env vars during build.
+// They are ONLY readable here in vite.config.js (Node build context) — Vite
+// only exposes VITE_-prefixed vars to client code by default, so `define`
+// is used to bridge these specific values into the client bundle as
+// compile-time constants.
+const buildSha  = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || 'dev';
+const buildDate = new Date().toISOString();
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    __APP_VERSION__: JSON.stringify(pkg.version),
+    __BUILD_SHA__:   JSON.stringify(buildSha),
+    __BUILD_DATE__:  JSON.stringify(buildDate),
+  },
   build: {
     outDir: 'dist',
     sourcemap: false,
