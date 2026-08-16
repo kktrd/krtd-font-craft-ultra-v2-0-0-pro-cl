@@ -284,3 +284,49 @@ updates automatically, with zero risk of drift, ever again.
 **To release a new version:** edit one line in `package.json`, commit, push.
 That's it — nothing else to remember, nowhere else to hunt.
 
+---
+
+## 🐛 v3.3 — Modal Overflow Fix + Legal/Contact Modal
+
+### Real bug fixed: Help modal was unreachable on short viewports
+The onboarding Help modal (10 feature items) had no height constraint or
+internal scrolling. On any viewport shorter than the content, the modal
+overflowed off-screen with the "Continue" button pushed below the visible
+area — unreachable by touch or click. The only way out was the keyboard
+(`Escape`/`Enter`), because `useFocusTrap` auto-focuses the first focusable
+element on open, which happened to *be* that same off-screen button — so
+keyboard `Enter` worked by coincidence while the visible UI offered no way
+out at all.
+
+**Fix:** rebuilt with a proper fixed-header / scrollable-body / fixed-footer
+layout (`max-h-[90vh] flex flex-col`, body `flex-1 overflow-y-auto`) — the
+same pattern already used correctly in `BottomSheetDrawer`. The action
+button is now *always* visible and reachable regardless of content length
+or viewport height. The same `max-h-[90vh] overflow-y-auto` safety net was
+added defensively to the Login modal, the Confirm/Prompt modal, and the
+Admin delete-confirmation modal — their content is short today, but the
+class of bug (unbounded modal height) is now closed everywhere, not just
+patched where it happened to be reported.
+
+### New: Legal Notice & Contact modal
+The footer copyright line was barely visible (`opacity-50`) and purely
+decorative. Now:
+- **High-contrast, bold, clickable** — uses the theme's accent color,
+  `font-black` weight, underlines on hover, with a chevron affordance.
+- **Opens a full modal** (`src/components/Shared/LegalModal.jsx`) with the
+  complete copyright/legal notice (auto-synced to the live version via
+  `versionInfo.js`, same single-source-of-truth system as the rest of the
+  app) and a **WhatsApp contact link** (`wa.me/94770020223`) that opens a
+  real chat, not just displayed text.
+- Reachable from *two* spots in the footer — the copyright line and the
+  "Unauthorized duplication prohibited" text — since both are part of the
+  same legal-notice cluster.
+
+**A subtle CSS bug caught and fixed along the way:** the initial version
+put `opacity-70` on the *parent* wrapper of the clickable Shield button and
+`hover:opacity-100` on the button itself, intending the button to brighten
+on hover. CSS opacity compounds down the render tree and cannot be
+"brightened back up" by a descendant's own opacity value — so that hover
+effect was silently a no-op. Fixed by scoping opacity to each element
+individually instead of a shared dimmed ancestor.
+

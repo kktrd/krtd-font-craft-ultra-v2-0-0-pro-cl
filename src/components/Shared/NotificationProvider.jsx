@@ -94,7 +94,7 @@ function ConfirmModal({ dialog, onResolve }) {
   return (
     <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm motion-safe:animate-[fadeIn_0.2s_ease-out]">
       <div ref={containerRef} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1}
-        className="max-w-sm w-full p-6 rounded-2xl border border-slate-700 shadow-2xl space-y-4 bg-slate-900 text-white">
+        className="max-w-sm w-full max-h-[90vh] overflow-y-auto p-6 rounded-2xl border border-slate-700 shadow-2xl space-y-4 bg-slate-900 text-white">
         <h4 id={titleId} className="font-black text-base">{dialog.title}</h4>
         {dialog.message && <p className="text-sm opacity-70 leading-relaxed">{dialog.message}</p>}
         {dialog.type === 'prompt' && (

@@ -494,43 +494,52 @@ function AppInner() {
             aria-modal="true"
             aria-labelledby={helpTitleId}
             tabIndex={-1}
-            className={`max-w-lg w-full p-6 rounded-2xl border shadow-2xl ${T.card}`}
+            className={`max-w-lg w-full max-h-[90vh] flex flex-col rounded-2xl border shadow-2xl ${T.card}`}
           >
-            <div className="flex justify-between items-center mb-5">
+            {/* Fixed header — never scrolls away */}
+            <div className={`flex-shrink-0 flex justify-between items-center p-6 pb-4 border-b ${T.divider}`}>
               <div className="flex items-center gap-2">
                 <Sparkles className={`w-5 h-5 motion-safe:animate-pulse ${T.accent}`} aria-hidden="true"/>
                 <h3 id={helpTitleId} className="text-lg font-black">KRTD Font Craft — Guide</h3>
               </div>
               <span className={`text-[9px] font-black px-2 py-0.5 rounded border ${T.accentBg}`}>{shortVersionLabel()}</span>
             </div>
-            <div className="space-y-3 text-sm">
-              {[
-                ['01','Canvas Studio','Atlas (left) — char select. Canvas — draw. Metrics (right) — sliders + cloud.'],
-                ['02','Text Studio','Singlish type → Sinhala. Trie + cloud predictions. .txt / .md export. Font test-drive.'],
-                ['03','Admin Panel','Login → projects manage, delete, public toggle, live metrics, user roles.'],
-                ['04','Offline Safe','Internet නැතිව draw කරන්න. Reconnect වූ විට auto cloud sync. Zero data loss.'],
-                ['05','Mirror Draw (X)','Symmetric letters — එක පැත්තක් අඳිනකොට අනික් පැත්ත auto-mirror වෙනවා.'],
-                ['06','Real TTF Export','SVG නෙමෙයි — actual installable .ttf font file Word/Canva වල use කරන්න පුළුවන්.'],
-                ['07','Live Collaboration','එකම font එකේ වෙනත් designers draw කරනකොට real-time පෙනේවි.'],
-                ['08','Stylus Pressure (Pen)','Apple Pencil/Wacom pen pressure → stroke width auto-vary. Mouse/touch වලට වෙනස් නෑ.'],
-                ['09','Reference Overlay (G)','Char එකක් type කරලා, ඒක ghost reference විදිහට පෙන්නා, consistency ඕන character draw කරන්න.'],
-                ['10','Specimen PDF','Metrics panel → "Export Specimen Sheet" — ඔයාගේ font එකේ සියලුම glyphs showcase PDF එකක්.'],
-              ].map(([n, t, d]) => (
-                <div key={n} className={`p-3 rounded-xl border flex gap-3 ${T.sub}`}>
-                  <span className={`font-black flex-shrink-0 text-sm ${T.accent}`}>{n}</span>
-                  <div>
-                    <strong className="block mb-0.5">{t}:</strong>
-                    <span className="opacity-60 text-xs">{d}</span>
+
+            {/* Scrollable body — the only part that scrolls, however long the guide gets */}
+            <div className="flex-1 overflow-y-auto px-6 py-4">
+              <div className="space-y-3 text-sm">
+                {[
+                  ['01','Canvas Studio','Atlas (left) — char select. Canvas — draw. Metrics (right) — sliders + cloud.'],
+                  ['02','Text Studio','Singlish type → Sinhala. Trie + cloud predictions. .txt / .md export. Font test-drive.'],
+                  ['03','Admin Panel','Login → projects manage, delete, public toggle, live metrics, user roles.'],
+                  ['04','Offline Safe','Internet නැතිව draw කරන්න. Reconnect වූ විට auto cloud sync. Zero data loss.'],
+                  ['05','Mirror Draw (X)','Symmetric letters — එක පැත්තක් අඳිනකොට අනික් පැත්ත auto-mirror වෙනවා.'],
+                  ['06','Real TTF Export','SVG නෙමෙයි — actual installable .ttf font file Word/Canva වල use කරන්න පුළුවන්.'],
+                  ['07','Live Collaboration','එකම font එකේ වෙනත් designers draw කරනකොට real-time පෙනේවි.'],
+                  ['08','Stylus Pressure (Pen)','Apple Pencil/Wacom pen pressure → stroke width auto-vary. Mouse/touch වලට වෙනස් නෑ.'],
+                  ['09','Reference Overlay (G)','Char එකක් type කරලා, ඒක ghost reference විදිහට පෙන්නා, consistency ඕන character draw කරන්න.'],
+                  ['10','Specimen PDF','Metrics panel → "Export Specimen Sheet" — ඔයාගේ font එකේ සියලුම glyphs showcase PDF එකක්.'],
+                ].map(([n, t, d]) => (
+                  <div key={n} className={`p-3 rounded-xl border flex gap-3 ${T.sub}`}>
+                    <span className={`font-black flex-shrink-0 text-sm ${T.accent}`}>{n}</span>
+                    <div>
+                      <strong className="block mb-0.5">{t}:</strong>
+                      <span className="opacity-60 text-xs">{d}</span>
+                    </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
             </div>
-            <button
-              onClick={() => { setShowHelp(false); localStorage.setItem('krtd_guide_seen', '1'); }}
-              className={`w-full mt-5 py-3 rounded-xl text-xs font-black uppercase tracking-wider ${T.btn}`}
-            >
-              හරි, ස්ටුඩියෝ එකට යමු →
-            </button>
+
+            {/* Fixed footer — button always visible and reachable regardless of body scroll position */}
+            <div className={`flex-shrink-0 p-6 pt-4 border-t ${T.divider}`}>
+              <button
+                onClick={() => { setShowHelp(false); localStorage.setItem('krtd_guide_seen', '1'); }}
+                className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider ${T.btn}`}
+              >
+                හරි, ස්ටුඩියෝ එකට යමු →
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -544,7 +553,7 @@ function AppInner() {
             aria-modal="true"
             aria-labelledby={loginTitleId}
             tabIndex={-1}
-            className={`max-w-sm w-full p-6 rounded-2xl border shadow-2xl ${T.card}`}
+            className={`max-w-sm w-full max-h-[90vh] overflow-y-auto p-6 rounded-2xl border shadow-2xl ${T.card}`}
           >
             <div className="flex justify-between items-center mb-5">
               <div className="flex items-center gap-2">

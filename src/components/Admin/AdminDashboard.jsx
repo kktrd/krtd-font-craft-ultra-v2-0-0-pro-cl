@@ -117,7 +117,7 @@ export default function AdminDashboard({ supabase, authUser, onLoginClick, onLog
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div ref={deleteModalRef} role="dialog" aria-modal="true" aria-labelledby={deleteTitleId} tabIndex={-1}
-            className={`max-w-sm w-full p-6 rounded-2xl border shadow-2xl space-y-4 ${T.card}`}>
+            className={`max-w-sm w-full max-h-[90vh] overflow-y-auto p-6 rounded-2xl border shadow-2xl space-y-4 ${T.card}`}>
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-xl bg-red-500/10 text-red-500"><Trash2 className="w-5 h-5" aria-hidden="true"/></div>
               <div>
