@@ -39,7 +39,7 @@ export default function LegalModal({ open, onClose, T }) {
         </div>
 
         {/* Scrollable body */}
-        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5 text-sm">
+        <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-5 text-sm">
 
           {/* Copyright & legal */}
           <section className={`p-4 rounded-xl border space-y-2 ${T.sub}`}>
