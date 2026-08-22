@@ -291,8 +291,13 @@ function AppInner() {
   };
 
   const handleLogout = async () => {
-    if (supabase) await supabase.auth.signOut();
-    setAuthUser(null);
+    try {
+      if (supabase) await supabase.auth.signOut();
+    } catch (err) {
+      console.warn('[KRTD] Sign-out request failed (clearing local session anyway):', err.message);
+    } finally {
+      setAuthUser(null);
+    }
   };
 
   // ── Metrics ──────────────────────────────────────────────────────────────
@@ -408,6 +413,12 @@ function AppInner() {
     const strokes = glyphs[selectedChar];
     if (!strokes?.length) { toast('⚠️ මේ character එකේ draw කරපු දේවල් නෑ.', 'error'); return; }
     const label = await promptDialog('Checkpoint name (e.g. "Final shape v1")') || null;
+    // Ensure the parent font_projects row exists first (silent, idempotent
+    // upsert) — glyph_history's RLS policy requires a matching font_projects
+    // row to already exist, and relying solely on the separate 2s-debounced
+    // auto-sync effect leaves a narrow race window (e.g. saving a checkpoint
+    // immediately after reconnecting from offline).
+    await syncToCloud(false);
     const ok = await saveSnapshot(selectedChar, strokes, authUser?.id, label);
     if (ok) { toast('📸 Checkpoint saved!', 'success'); loadHistory(selectedChar); }
     else toast('❌ Save failed — cloud connection check කරන්න.', 'error');
