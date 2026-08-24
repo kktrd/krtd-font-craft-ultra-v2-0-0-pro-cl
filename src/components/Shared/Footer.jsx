@@ -7,7 +7,7 @@ export default function Footer({ T }) {
   const [showLegal, setShowLegal] = useState(false);
 
   return (
-    <footer className={`border-t mt-8 transition-all ${T.card}`}>
+    <footer className={`border-t mt-8 md:mt-0 md:flex-shrink-0 transition-all ${T.card}`}>
       <div className="max-w-[1600px] mx-auto px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-3">
 
         {/* Copyright — high-contrast, bold, clickable to open full legal + contact info */}

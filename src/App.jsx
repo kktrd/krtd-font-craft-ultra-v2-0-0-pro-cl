@@ -467,7 +467,7 @@ function AppInner() {
   // ────────────────────────────────────────────────────────────────────────
   return (
     <div
-      className={`min-h-screen font-sans transition-colors duration-200 ${T.bg}`}
+      className={`min-h-screen md:h-screen md:overflow-hidden md:flex md:flex-col font-sans transition-colors duration-200 ${T.bg}`}
       style={{ overscrollBehavior: 'none' }}
     >
       <SkipLink />
@@ -617,6 +617,7 @@ function AppInner() {
       />
 
       {/* Live collaborator presence strip */}
+      <div className="md:flex-1 md:overflow-y-auto md:min-h-0">
       <CollabPresence collaborators={collaborators} selfId={identity.id} T={T} />
 
       {/* ── CANVAS TAB ───────────────────────────────────────────────────── */}
@@ -699,6 +700,8 @@ function AppInner() {
           </main>
         </ErrorBoundary>
       )}
+
+      </div>
 
       <Footer T={T}/>
     </div>
