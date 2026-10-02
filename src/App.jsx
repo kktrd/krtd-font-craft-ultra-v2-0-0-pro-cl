@@ -530,6 +530,7 @@ function AppInner() {
                   ['08','Stylus Pressure (Pen)','Apple Pencil/Wacom pen pressure → stroke width auto-vary. Mouse/touch වලට වෙනස් නෑ.'],
                   ['09','Reference Overlay (G)','Char එකක් type කරලා, ඒක ghost reference විදිහට පෙන්නා, consistency ඕන character draw කරන්න.'],
                   ['10','Specimen PDF','Metrics panel → "Export Specimen Sheet" — ඔයාගේ font එකේ සියලුම glyphs showcase PDF එකක්.'],
+                  ['11','Stroke Prediction (P)','Draw කරද්දී, pen එකේ trajectory එකෙන් ඉදිරි path එක ghost line එකක් විදිහට preview කරනවා — actual stroke එකට effect කරන්නේ නෑ.'],
                 ].map(([n, t, d]) => (
                   <div key={n} className={`p-3 rounded-xl border flex gap-3 ${T.sub}`}>
                     <span className={`font-black flex-shrink-0 text-sm ${T.accent}`}>{n}</span>

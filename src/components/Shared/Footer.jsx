@@ -16,7 +16,7 @@ export default function Footer({ T }) {
           className={`flex items-center gap-2 text-[10px] font-black tracking-widest uppercase transition hover:underline underline-offset-2 ${T.accent}`}
         >
           <Copyright className="w-3.5 h-3.5 flex-shrink-0" aria-hidden="true"/>
-          <span>{fullVersionLine()}</span>
+          <span>{fullVersionLine().split('·')[0]}·<span className="normal-case">{fullVersionLine().split('·')[1]}</span></span>
           <ChevronRight className="w-3 h-3 flex-shrink-0 opacity-50" aria-hidden="true"/>
         </button>
 

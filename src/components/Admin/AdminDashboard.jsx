@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useId } from 'react';
 import { useFocusTrap } from '../../hooks/useFocusTrap.js';
 import { fullVersionLine, buildStamp } from '../../utils/versionInfo.js';
+import DiagnosticsPanel from './DiagnosticsPanel.jsx';
 import {
   Database, FileText, Users, Palette, Wifi, RefreshCw, Trash2,
   Lock, LogOut, Loader2, Shield, Activity, AlertTriangle,
-  CheckCircle, UserCheck, HardDrive, BarChart2, Eye, EyeOff
+  CheckCircle, UserCheck, HardDrive, BarChart2, Eye, EyeOff, Cpu
 } from 'lucide-react';
 
 export default function AdminDashboard({ supabase, authUser, onLoginClick, onLogout, glyphs, T }) {
@@ -79,10 +80,11 @@ export default function AdminDashboard({ supabase, authUser, onLoginClick, onLog
   const localGlyphs  = Object.keys(glyphs).length;
 
   const VIEWS = [
-    { id: 'projects', label: 'Projects',  Icon: FileText  },
-    { id: 'users',    label: 'Users',     Icon: Users     },
-    { id: 'metrics',  label: 'Metrics',   Icon: BarChart2 },
-    { id: 'audit',    label: 'Audit Log', Icon: Activity  },
+    { id: 'projects',    label: 'Projects',    Icon: FileText  },
+    { id: 'users',       label: 'Users',       Icon: Users     },
+    { id: 'metrics',     label: 'Metrics',     Icon: BarChart2 },
+    { id: 'audit',       label: 'Audit Log',   Icon: Activity  },
+    { id: 'diagnostics', label: 'Diagnostics', Icon: Cpu       },
   ];
 
   const ROLE_OPTIONS = ['guest','designer','admin','super_admin'];
@@ -314,6 +316,11 @@ export default function AdminDashboard({ supabase, authUser, onLoginClick, onLog
             ))}
           </div>
         </div>
+      )}
+
+      {/* ── DIAGNOSTICS VIEW ───────────────────────────────────────── */}
+      {!loading && activeView === 'diagnostics' && (
+        <DiagnosticsPanel supabase={supabase} T={T} />
       )}
 
       {/* Copyright footer */}

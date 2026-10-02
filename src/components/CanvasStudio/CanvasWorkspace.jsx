@@ -30,6 +30,7 @@ export default function CanvasWorkspace({
   onClearClipboard,
 }) {
   const canvasRef    = useRef(null);
+  const predictCanvasRef = useRef(null);
   const containerRef = useRef(null);
   const contextRef   = useRef(null);
   const isDrawingRef = useRef(false);
@@ -53,6 +54,7 @@ export default function CanvasWorkspace({
   const [showShortcuts, setShowShortcuts] = useState(false);
   const [showRuler,     setShowRuler]     = useState(false);
   const [mirrorMode,    setMirrorMode]    = useState(false);
+  const [predictMode,   setPredictMode]   = useState(false);
 
   // ── Onion-skin reference overlay ─────────────────────────────────────────
   const [referenceMode, setReferenceMode] = useState(false);
@@ -233,6 +235,7 @@ export default function CanvasWorkspace({
         case 's': setSnapEnabled(s=>!s); break;
         case 'r': setShowRuler(s=>!s);   break;
         case 'x': setMirrorMode(s=>!s);  break;
+        case 'p': setPredictMode(s=>!s); break;
         case 'g': setReferenceMode(s=>!s); break;
         case '[': setStrokeWidth(w=>Math.max(2,w-2));  break;
         case ']': setStrokeWidth(w=>Math.min(48,w+2)); break;
@@ -323,10 +326,38 @@ export default function CanvasWorkspace({
       ctx.globalAlpha=1;
       mirrorLastPtRef.current = { x:mcx, y:c.y, time:c.time };
     }
-  }, [getCoords, strokeWidth, isEraser, brushMode, aiSmooth, T, mirrorMode]);
+
+    // ── Stroke prediction ghost (separate overlay canvas — zero risk to
+    // real stroke data, cleared/redrawn each move, cleared on stroke end)
+    if (predictMode && !isEraser) {
+      const pc = predictCanvasRef.current;
+      if (pc) {
+        const pctx = pc.getContext('2d');
+        pctx.clearRect(0, 0, CS, CS);
+        const pts = strokeRef.current;
+        const pn = pts.length;
+        if (pn >= 3) {
+          const p1 = pts[Math.max(0, pn-4)], p2 = pts[pn-1];
+          let vx = p2.x - p1.x, vy = p2.y - p1.y;
+          const mag = Math.hypot(vx, vy) || 1;
+          vx /= mag; vy /= mag;
+          const reach = Math.min(60, mag * 3);
+          pctx.beginPath();
+          pctx.setLineDash([4, 4]);
+          pctx.moveTo(p2.x, p2.y);
+          pctx.lineTo(p2.x + vx*reach, p2.y + vy*reach);
+          pctx.lineWidth = 1.5;
+          pctx.strokeStyle = theme==='dark' ? 'rgba(56,189,248,0.55)' : 'rgba(236,72,153,0.55)';
+          pctx.stroke();
+          pctx.setLineDash([]);
+        }
+      }
+    }
+  }, [getCoords, strokeWidth, isEraser, brushMode, aiSmooth, T, mirrorMode, predictMode, theme]);
 
   const stopDrawing = useCallback(() => {
     if (!isDrawingRef.current) return; isDrawingRef.current=false;
+    if (predictCanvasRef.current) predictCanvasRef.current.getContext('2d').clearRect(0,0,CS,CS);
     const raw=[...strokeRef.current]; if (raw.length<2) return;
     let stroke = raw[0]?.isEraser ? raw : rdpSimplify(raw, 1.5);
     if (!isEraser && brushMode==='tapered' && !isPenRef.current && stroke.length>12) {
@@ -475,6 +506,7 @@ export default function CanvasWorkspace({
   const eraserAc= theme==='dark'?'bg-slate-800 text-red-400 shadow-sm':theme==='comfort'?'bg-[#fdfbf7] text-red-500 shadow-sm':'bg-white text-red-500 shadow-sm';
   const mirrorAc= 'bg-pink-500 text-white shadow-sm';
   const refAc   = 'bg-violet-500 text-white shadow-sm';
+  const predictAc = 'bg-sky-500 text-white shadow-sm';
 
   const ZOOMS=[1,1.5,2,3];
   const MODES=['calligraphy','tapered','uniform'];
@@ -487,7 +519,7 @@ export default function CanvasWorkspace({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 font-mono">
             {[['Ctrl+Z','Undo'],['Ctrl+Y','Redo'],['E','Eraser'],['B','Brush'],
               ['M','Metrics'],['S','Snap'],['R','Ruler'],['X','Mirror'],
-              ['G','Reference'],['[ ]','Size ±'],['1-4','Zoom']].map(([k,v])=>(
+              ['G','Reference'],['P','Predict'],['[ ]','Size ±'],['1-4','Zoom']].map(([k,v])=>(
               <div key={k} className="flex items-center gap-2">
                 <kbd className={`px-1.5 py-0.5 rounded border text-[9px] font-black ${T.card}`}>{k}</kbd>
                 <span className="opacity-50">{v}</span>
@@ -599,6 +631,10 @@ export default function CanvasWorkspace({
             className={`px-2 py-1 rounded-lg border transition flex items-center gap-1 ${mirrorMode?mirrorAc:'opacity-70 hover:opacity-100'}`}>
             <FlipHorizontal2 className="w-3 h-3" aria-hidden="true"/> Mirror
           </button>
+          <button onClick={()=>setPredictMode(s=>!s)} title="Stroke Prediction Preview (P)" aria-pressed={predictMode}
+            className={`px-2 py-1 rounded-lg border transition flex items-center gap-1 ${predictMode?predictAc:'opacity-70 hover:opacity-100'}`}>
+            <Sparkles className="w-3 h-3" aria-hidden="true"/> Predict
+          </button>
           <button onClick={()=>setReferenceMode(s=>!s)} title="Onion-Skin Reference (G)" aria-pressed={referenceMode}
             className={`px-2 py-1 rounded-lg border transition flex items-center gap-1 ${referenceMode?refAc:'opacity-70 hover:opacity-100'}`}>
             <Layers3 className="w-3 h-3" aria-hidden="true"/> Reference
@@ -619,15 +655,22 @@ export default function CanvasWorkspace({
       {/* Canvas */}
       <div ref={containerRef} className={`rounded-2xl border overflow-auto w-full ${T.canvasBg}`}
         style={{ touchAction:'none', height:`${displaySize+4}px` }}>
-        <canvas
-          ref={canvasRef} width={CS} height={CS}
-          role="img"
-          aria-label={`Drawing canvas for character ${selectedChar}. Requires mouse, touch, or stylus input — not keyboard-operable.`}
-          style={{ width:`${displaySize}px`, height:`${displaySize}px`, display:'block', cursor:'crosshair' }}
-          onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing}
-          onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
-          onPointerMove={handlePointerMove}
-        />
+        <div style={{ position:'relative', width:`${displaySize}px`, height:`${displaySize}px` }}>
+          <canvas
+            ref={canvasRef} width={CS} height={CS}
+            role="img"
+            aria-label={`Drawing canvas for character ${selectedChar}. Requires mouse, touch, or stylus input — not keyboard-operable.`}
+            style={{ width:`${displaySize}px`, height:`${displaySize}px`, display:'block', cursor:'crosshair' }}
+            onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing}
+            onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
+            onPointerMove={handlePointerMove}
+          />
+          <canvas
+            ref={predictCanvasRef} width={CS} height={CS}
+            aria-hidden="true"
+            style={{ position:'absolute', top:0, left:0, width:`${displaySize}px`, height:`${displaySize}px`, pointerEvents:'none' }}
+          />
+        </div>
       </div>
 
       {/* Actions */}
