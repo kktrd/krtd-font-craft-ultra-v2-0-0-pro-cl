@@ -330,3 +330,28 @@ on hover. CSS opacity compounds down the render tree and cannot be
 effect was silently a no-op. Fixed by scoping opacity to each element
 individually instead of a shared dimmed ancestor.
 
+
+
+---
+
+## v3.4 – v3.6.1 — Security, Layout, Prediction, Diagnostics
+
+- **Security (v3.4 / v3.6.1):** `glyph_history` RLS was fully open (`USING (true)`). Now least-privilege:
+  read = own / guest / public project; insert = own / guest only; no client UPDATE/DELETE.
+  **Run the policy block in `fontcraft-db-schema.sql` in the Supabase SQL Editor — it does not apply on deploy.**
+- **Desktop layout (v3.5):** Header and Footer stay fixed on desktop (`md:` and up); only the middle area scrolls. Mobile unchanged.
+- **Stroke Prediction (v3.6):** toggle `Predict` or press `P`. Draws a faint dashed ghost line extending the pen's
+  current direction (simple trajectory extrapolation on a separate overlay canvas; it never alters stroke data).
+  It does NOT predict whole letter shapes.
+- **Diagnostics (v3.6):** Admin -> Diagnostics runs live checks in the browser (storage, canvas, service worker,
+  Supabase round-trip, workers) and shows the exact build version / SHA / feature flags actually running.
+- **Footer (v3.6.1):** copyright line regular weight, author name bold.
+
+---
+
+## v3.7.0 – Responsive refinement
+- Three-column layout now starts at **1024px (lg)**; tablets (768–1023px) use the full-width canvas + Atlas/Metrics bottom sheets instead of cramped 170px side columns.
+- Viewport no longer blocks pinch-zoom (accessibility); `viewport-fit=cover` + safe-area insets for notch / home indicator.
+- Fixed desktop shell uses `100dvh` (no jump from mobile browser toolbars).
+- Inputs are 16px on small screens (no iOS auto-zoom); larger touch targets and slider thumbs on touch devices; glyph hover-scale only on hover devices.
+- Toast stack fits 320px screens; canvas centred in its panel.

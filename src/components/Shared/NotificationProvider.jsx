@@ -48,7 +48,7 @@ export function NotificationProvider({ children }) {
 
         {/* Toast stack — bottom-right, accessible live region */}
         <div aria-live="polite" aria-atomic="false"
-          className="fixed bottom-4 right-4 z-[60] flex flex-col gap-2 max-w-[340px] w-full pointer-events-none">
+          className="fixed bottom-4 left-4 right-4 sm:left-auto sm:w-[340px] z-[60] flex flex-col gap-2 pointer-events-none safe-bottom">
           {toasts.map(t => {
             const s = STYLES[t.type] || STYLES.info;
             return (

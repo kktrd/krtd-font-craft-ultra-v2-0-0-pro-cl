@@ -155,3 +155,35 @@ select:focus-visible,
     scroll-behavior: auto !important;
   }
 }
+
+
+/* ── Responsive refinements (v3.7) ──────────────────────────────────
+   Safe-area insets (notch / home indicator), dynamic viewport height
+   (mobile browser toolbars), tablet-friendly touch targets, no iOS
+   auto-zoom on focus, and hover effects only where hover exists. */
+.safe-top    { padding-top: env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+body {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+.sheet-maxh { max-height: 75vh; max-height: 75dvh; }
+@media (min-width: 1024px) {
+  .app-shell { height: 100vh; height: 100dvh; }
+}
+@media (max-width: 1023px) {
+  input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
+  textarea, select { font-size: 16px; }
+}
+@media (pointer: coarse) {
+  header button, [role="tab"], [role="radio"] { min-height: 40px; }
+  input[type="range"] { height: 8px; }
+  input[type="range"]::-webkit-slider-thumb { width: 24px; height: 24px; }
+  input[type="range"]::-moz-range-thumb { width: 24px; height: 24px; }
+}
+@media (hover: none) {
+  .glyph-btn:hover { transform: none; }
+}
+@media (max-width: 374px) {
+  main { padding-left: 8px; padding-right: 8px; }
+}

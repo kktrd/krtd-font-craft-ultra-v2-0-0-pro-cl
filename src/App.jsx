@@ -467,7 +467,7 @@ function AppInner() {
   // ────────────────────────────────────────────────────────────────────────
   return (
     <div
-      className={`min-h-screen md:h-screen md:overflow-hidden md:flex md:flex-col font-sans transition-colors duration-200 ${T.bg}`}
+      className={`min-h-screen lg:app-shell lg:overflow-hidden lg:flex lg:flex-col font-sans transition-colors duration-200 ${T.bg}`}
       style={{ overscrollBehavior: 'none' }}
     >
       <SkipLink />
@@ -618,20 +618,20 @@ function AppInner() {
       />
 
       {/* Live collaborator presence strip */}
-      <div className="md:flex-1 md:overflow-y-auto md:min-h-0">
+      <div className="lg:flex-1 lg:overflow-y-auto lg:min-h-0">
       <CollabPresence collaborators={collaborators} selfId={identity.id} T={T} />
 
       {/* ── CANVAS TAB ───────────────────────────────────────────────────── */}
       {activeTab === 'canvas' && (
         <ErrorBoundary T={T}>
           <main id="main-content" className="max-w-[1600px] mx-auto p-3 md:p-5 lg:p-6">
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-5 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 items-start">
 
-              <aside className={`hidden md:block md:col-span-3 p-4 rounded-2xl border lg:max-h-[830px] overflow-y-auto ${T.card}`}>
+              <aside className={`hidden lg:block lg:col-span-3 p-4 rounded-2xl border lg:max-h-[830px] overflow-y-auto ${T.card}`}>
                 <AtlasMatrix selectedChar={selectedChar} setSelectedChar={setSelectedChar} glyphs={glyphs} T={T} onCopyGlyph={copyGlyph} activeEditors={collaborators.filter(c => c.id !== identity.id)}/>
               </aside>
 
-              <section className={`col-span-12 md:col-span-6 p-4 md:p-5 rounded-2xl border ${T.card}`}>
+              <section className={`col-span-12 lg:col-span-6 p-3 sm:p-4 lg:p-5 min-w-0 rounded-2xl border ${T.card}`}>
                 <CanvasWorkspace
                   theme={theme} T={T}
                   selectedChar={selectedChar}
@@ -653,7 +653,7 @@ function AppInner() {
                 />
               </section>
 
-              <aside className={`hidden md:block md:col-span-3 p-4 rounded-2xl border ${T.card}`}>
+              <aside className={`hidden lg:block lg:col-span-3 p-4 rounded-2xl border ${T.card}`}>
                 <MetricsEngine {...metricsProps} savedLabel={savedLabel}/>
               </aside>
             </div>

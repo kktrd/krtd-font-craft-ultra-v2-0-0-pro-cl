@@ -19,7 +19,7 @@ export default function BottomSheetDrawer({ open, onClose, title, children, T })
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-40 flex flex-col justify-end md:hidden">
+    <div className="fixed inset-0 z-40 flex flex-col justify-end lg:hidden">
       {/* Overlay */}
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm sheet-overlay-enter"
@@ -33,7 +33,7 @@ export default function BottomSheetDrawer({ open, onClose, title, children, T })
         aria-modal="true"
         aria-labelledby={titleId}
         tabIndex={-1}
-        className={`relative z-50 max-h-[75vh] flex flex-col rounded-t-2xl border-t shadow-2xl sheet-enter ${T.card}`}
+        className={`relative z-50 max-h-[75vh] flex flex-col rounded-t-2xl border-t shadow-2xl sheet-enter safe-bottom sheet-maxh ${T.card}`}
       >
         {/* Handle + Header */}
         <div className={`flex-shrink-0 px-5 pt-3 pb-3 border-b ${T.divider}`}>

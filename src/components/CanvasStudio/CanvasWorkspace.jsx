@@ -655,7 +655,7 @@ export default function CanvasWorkspace({
       {/* Canvas */}
       <div ref={containerRef} className={`rounded-2xl border overflow-auto w-full ${T.canvasBg}`}
         style={{ touchAction:'none', height:`${displaySize+4}px` }}>
-        <div style={{ position:'relative', width:`${displaySize}px`, height:`${displaySize}px` }}>
+        <div style={{ position:'relative', margin:'0 auto', width:`${displaySize}px`, height:`${displaySize}px` }}>
           <canvas
             ref={canvasRef} width={CS} height={CS}
             role="img"
@@ -686,7 +686,7 @@ export default function CanvasWorkspace({
       </div>
 
       {/* Mobile sheet triggers */}
-      <div className="grid grid-cols-2 gap-2 md:hidden">
+      <div className="grid grid-cols-2 gap-2 lg:hidden">
         <button onClick={onOpenAtlas}
           className={`py-2.5 text-[10px] font-bold rounded-xl border flex items-center justify-center gap-1.5 ${T.btnGhost}`}>
           <Grid3X3 className="w-3.5 h-3.5" aria-hidden="true"/> Atlas <ChevronUp className="w-3.5 h-3.5" aria-hidden="true"/>

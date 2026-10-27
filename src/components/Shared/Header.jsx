@@ -22,7 +22,7 @@ export default function Header({
   ];
 
   return (
-    <header className={`sticky top-0 md:flex-shrink-0 z-30 border-b transition-all ${T.header}`}>
+    <header className={`sticky top-0 lg:flex-shrink-0 z-30 safe-top border-b transition-all ${T.header}`}>
       <div className="max-w-[1600px] mx-auto px-4 py-2.5 flex flex-col xs:flex-row justify-between items-start xs:items-center gap-2 xs:gap-3">
 
         {/* Brand */}
