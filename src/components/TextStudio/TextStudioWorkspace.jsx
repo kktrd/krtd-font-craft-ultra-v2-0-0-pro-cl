@@ -28,6 +28,10 @@ export default function TextStudioWorkspace({
 }) {
   const [singlish,    setSinglish]    = useState('');
   const [sinhala,     setSinhala]     = useState('');
+  // Text already "committed" (accepted suggestion / hand-edited output / pasted legacy).
+  // Output = committed + live conversion of the Singlish box, so accepting a
+  // suggestion or editing the output never makes earlier text vanish on the next keystroke.
+  const [committed,   setCommitted]   = useState('');
   const [copied,      setCopied]      = useState(false);
   const [fontSize,    setFontSize]    = useState(24);
   const [align,       setAlign]       = useState('left');
@@ -88,22 +92,23 @@ export default function TextStudioWorkspace({
     const myId = ++latestConvertId.current;
     const out = await convert(val);
     if (myId !== latestConvertId.current) return; // stale — newer input superseded this
-    setSinhala(out);
-    runPrediction(out);
-  }, [convert, runPrediction]);
+    setSinhala(committed + out);
+    runPrediction(committed + out);
+  }, [convert, runPrediction, committed]);
 
   const applySuggestion = (word) => {
     const words = sinhala.trim().split(/\s+/);
     words[words.length - 1] = word;
     const newOut = words.join(' ') + ' ';
-    setSinhala(newOut); setSinglish('');
+    setSinhala(newOut); setCommitted(newOut); setSinglish('');
     setSuggestions([]); setShowSugg(false); setTierB(false); setDisambig(null);
   };
 
   const applyDisambiguation = (altWord) => {
     const words = sinhala.trim().split(/\s+/);
     words[words.length - 1] = altWord;
-    setSinhala(words.join(' ') + ' ');
+    const newOut = words.join(' ') + ' ';
+    setSinhala(newOut); setCommitted(newOut); setSinglish('');
     setDisambig(null);
   };
 
@@ -123,10 +128,11 @@ export default function TextStudioWorkspace({
     a.href      = URL.createObjectURL(blob);
     a.download  = `sinhala_output.${ext}`;
     document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   };
 
   const clearAll = () => {
-    setSinglish(''); setSinhala(''); setSuggestions([]); setShowSugg(false);
+    setSinglish(''); setSinhala(''); setCommitted(''); setSuggestions([]); setShowSugg(false);
     setTierB(false); setDisambig(null); setLegacyInput('');
   };
 
@@ -135,7 +141,7 @@ export default function TextStudioWorkspace({
   const handleLegacyPaste = (val) => {
     setLegacyInput(val);
     const restored = legacyToUnicode(val);
-    setSinhala(restored);
+    setSinhala(restored); setCommitted(restored); setSinglish('');
   };
 
   // ── Effective line-height: manual slider unless user hasn't touched it
@@ -280,7 +286,7 @@ export default function TextStudioWorkspace({
             <textarea
               id={sinhalaId}
               rows={6} value={sinhala}
-              onChange={e => { setSinhala(e.target.value); runPrediction(e.target.value); }}
+              onChange={e => { setSinhala(e.target.value); setCommitted(e.target.value); setSinglish(''); runPrediction(e.target.value); }}
               placeholder="සිංහල output..."
               autoCapitalize="none" autoCorrect="off" spellCheck={false}
               className={`w-full font-black p-3 rounded-xl focus:outline-none border transition resize-none ${T.input} ${T.accent} ${!useLivePreview ? 'font-sinhala' : ''}`}

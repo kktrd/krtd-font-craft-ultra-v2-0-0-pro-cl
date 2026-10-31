@@ -11,7 +11,7 @@ const VOWEL_MAP = [
   { key: 'ii',  ind: 'ඊ', dep: 'ී' },
   { key: 'uu',  ind: 'ඌ', dep: 'ූ' },
   { key: 'ee',  ind: 'ඒ', dep: 'ේ' },
-  { key: 'oo',  ind: 'ඕ', dep: 'ො' },
+  { key: 'oo',  ind: 'ඕ', dep: 'ෝ' },
   { key: 'ai',  ind: 'ඓ', dep: 'ෛ' },
   { key: 'au',  ind: 'ඖ', dep: 'ෞ' },
   { key: 'a',   ind: 'අ', dep: ''   },
@@ -28,13 +28,13 @@ const CONSONANT_MAP = [
   { key: 'gh',   val: 'ඝ'  }, { key: 'jh',   val: 'ඣ'  }, { key: 'th',   val: 'ත'  },
   { key: 'dh',   val: 'ද'  }, { key: 'shh',  val: 'ෂ'  }, { key: 'sh',   val: 'ශ'  },
   { key: 'ph',   val: 'ඵ'  }, { key: 'bh',   val: 'භ'  }, { key: 'lh',   val: 'ළ'  },
-  { key: 'k',    val: 'ක'  }, { key: 'g',    val: 'ග'  }, { key: 'j',    val: 'ජ'  },
+  { key: 'c',    val: 'ච'  }, { key: 'k',    val: 'ක'  }, { key: 'g',    val: 'ග'  }, { key: 'j',    val: 'ජ'  },
   { key: 't',    val: 'ට'  }, { key: 'd',    val: 'ද'  }, { key: 'D',    val: 'ඩ'  },
   { key: 'n',    val: 'න'  }, { key: 'p',    val: 'ප'  }, { key: 'b',    val: 'බ'  },
   { key: 'm',    val: 'ම'  }, { key: 'y',    val: 'ය'  }, { key: 'r',    val: 'ර'  },
   { key: 'l',    val: 'ල'  }, { key: 'v',    val: 'ව'  }, { key: 'w',    val: 'ව'  },
   { key: 's',    val: 'ස'  }, { key: 'h',    val: 'හ'  }, { key: 'f',    val: 'ෆ'  },
-  { key: 'N',    val: 'ණ'  }, { key: 'L',    val: 'ළ'  }, { key: 'R',    val: 'ඍ'  },
+  { key: 'T',    val: 'ඨ'  }, { key: 'N',    val: 'ණ'  }, { key: 'L',    val: 'ළ'  }, { key: 'R',    val: 'ඍ'  },
 ];
 
 const EXPLICIT_LIGATURES = [
@@ -51,29 +51,30 @@ const EXPLICIT_LIGATURES = [
 ];
 
 /**
- * Normalize accidental leading capital — safe, no lookbehind.
- * "Mama" → "mama", but "DNA" stays "DNA"
+ * Normalize accidental leading capitals (mobile keyboards, sentence starts).
+ *  - First word of a line / sentence: leading capital is always lowercased
+ *    ("Mama" -> "mama", "Pasal" -> "pasal").
+ *  - Mid-sentence words: lowercased too, EXCEPT when the capital is a real
+ *    scheme letter (D N L R T) which is then kept as the retroflex consonant.
+ *  - ALL-CAPS words ("DNA") are left untouched.
  */
-function normalizeLeadingCap(text) {
-  if (!text || text.length < 2) return text;
-  const first = text[0];
-  const second = text[1];
-  // Only lowercase if first char is uppercase and second is lowercase
-  if (first >= 'A' && first <= 'Z' && second >= 'a' && second <= 'z') {
-    return first.toLowerCase() + text.slice(1);
-  }
-  return text;
+const SCHEME_CAPS = 'DNLRT';
+function normalizeLeadingCaps(text) {
+  if (!text) return text;
+  return text.replace(/[A-Za-z]+/g, (word, offset) => {
+    if (word.length < 2) return word;
+    const f = word[0], s2 = word[1];
+    if (!(f >= 'A' && f <= 'Z' && s2 >= 'a' && s2 <= 'z')) return word;
+    const before = text.slice(0, offset).replace(/[ \t]+$/, '');
+    const sentenceStart = before === '' || /[\n.!?]$/.test(before);
+    if (sentenceStart || SCHEME_CAPS.indexOf(f) === -1) return f.toLowerCase() + word.slice(1);
+    return word;
+  });
 }
 
 export function convertSinglishToSinhala(text) {
   if (!text) return '';
-  // Apply normalization word by word so mid-sentence capitals are preserved
-  text = text
-    .split('\n')
-    .map(line =>
-      line.split(' ').map((word, i) => i === 0 ? normalizeLeadingCap(word) : word).join(' ')
-    )
-    .join('\n');
+  text = normalizeLeadingCaps(text);
 
   let result = '';
   let idx = 0;
@@ -90,6 +91,15 @@ export function convertSinglishToSinhala(text) {
     let cons = null;
     for (const c of CONSONANT_MAP) {
       if (text.startsWith(c.key, idx)) { cons = c; break; }
+    }
+
+    if (cons && cons.key === 'ng') {
+      // 'ng' + vowel -> ඟ (nga);  'ng' before consonant / end -> ං (anusvara)
+      const after = idx + 2;
+      const vM = VOWEL_MAP.find(v => text.startsWith(v.key, after));
+      if (vM) { result += 'ඟ' + vM.dep; idx = after + vM.key.length; }
+      else    { result += 'ං'; idx = after; }
+      continue;
     }
 
     if (cons) {

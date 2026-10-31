@@ -187,3 +187,21 @@ body {
 @media (max-width: 374px) {
   main { padding-left: 8px; padding-right: 8px; }
 }
+
+/* Modals / sheets: dynamic viewport height so mobile browser bars never clip them */
+.max-h-\[90vh\] { max-height: 90vh; max-height: 90dvh; }
+.max-h-\[85vh\] { max-height: 85vh; max-height: 85dvh; }
+.max-h-\[80vh\] { max-height: 80vh; max-height: 80dvh; }
+/* Tiny labels become readable on phones */
+@media (max-width: 640px) {
+  .text-\[9px\] { font-size: 10px; }
+}
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .sheet-enter, .sheet-overlay-enter { animation: none; }
+  html { scroll-behavior: auto; }
+}
+/* Landscape phones: keep sheets/modals usable */
+@media (max-height: 480px) and (orientation: landscape) {
+  .sheet-maxh { max-height: 92vh; max-height: 92dvh; }
+}

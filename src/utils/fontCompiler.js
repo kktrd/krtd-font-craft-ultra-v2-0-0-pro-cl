@@ -26,7 +26,25 @@ const PUA_START    = 0xF100; // Private Use Area base for ligature/composite gly
  * closed outline polygon in FONT coordinate space (y-up, scaled, baseline-relative).
  */
 function strokeToOutlinePoints(stroke, baselineY) {
-  if (stroke.length < 2) return [];
+  if (!stroke.length) return [];
+
+  // A tap / dot (single point, or all points on top of each other) must still
+  // produce a visible mark (e.g. ං, ඃ, full stop). Emit a 16-sided circle.
+  let spread = 0;
+  for (let i = 1; i < stroke.length; i++) {
+    spread = Math.max(spread, Math.hypot(stroke[i].x - stroke[0].x, stroke[i].y - stroke[0].y));
+  }
+  if (stroke.length < 2 || spread < 0.5) {
+    const c = stroke[0];
+    const r = Math.max(1, (c.strokeWidth || 8)) / 2;
+    const pts = [];
+    for (let k = 0; k < 16; k++) {
+      const a = (k / 16) * Math.PI * 2;
+      pts.push({ x: (c.x + Math.cos(a) * r) * SCALE, y: (baselineY - (c.y + Math.sin(a) * r)) * SCALE });
+    }
+    return pts;
+  }
+
   const left = [];
   const right = [];
 
@@ -125,6 +143,19 @@ function resolveGlyphCodepoint(char, puaCounterRef) {
   return { unicode: puaCode, isPUA: true };
 }
 
+/** Shift every x coordinate of a path (all command types) by dx. */
+function shiftPathX(path, dx) {
+  path.commands.forEach((c) => {
+    if (typeof c.x  === 'number') c.x  += dx;
+    if (typeof c.x1 === 'number') c.x1 += dx;
+    if (typeof c.x2 === 'number') c.x2 += dx;
+  });
+}
+
+const SIDE_BEARING = 60;   // font units on each side of the drawn shape
+const MIN_ADVANCE  = 260;  // narrowest allowed glyph advance
+const SPACE_ADVANCE = 300;
+
 /**
  * Compiles the full glyph set into an opentype.Font instance.
  */
@@ -140,7 +171,13 @@ export function compileOpenTypeFont({ fontName, metrics, glyphs }) {
     path: new opentype.Path(),
   });
 
-  const glyphList = [notdefGlyph];
+  const spaceGlyph = new opentype.Glyph({
+    name: 'space',
+    unicode: 32,
+    advanceWidth: SPACE_ADVANCE,
+    path: new opentype.Path(),
+  });
+  const glyphList = [notdefGlyph, spaceGlyph];
   const puaCounterRef = { count: 0 };
   const puaMap = []; // [{ char, puaCodepoint }] — returned for UI disclosure
   let compiledCount = 0;
@@ -151,6 +188,13 @@ export function compileOpenTypeFont({ fontName, metrics, glyphs }) {
     const path = buildGlyphPath(realStrokes, baselineY);
     if (path.commands.length === 0) return;
 
+    // Real-world spacing: left-align the drawn shape to a fixed side bearing and
+    // set the advance from the shape's actual width (instead of one fixed width
+    // for every glyph, which made wide glyphs overlap and narrow ones gappy).
+    const bb = path.getBoundingBox();
+    shiftPathX(path, SIDE_BEARING - bb.x1);
+    const advanceWidth = Math.max(MIN_ADVANCE, Math.round((bb.x2 - bb.x1) + SIDE_BEARING * 2));
+
     const { unicode, isPUA } = FEATURE_FLAGS.ENABLE_LIGATURE_SAFE_EXPORT
       ? resolveGlyphCodepoint(char, puaCounterRef)
       : { unicode: char.codePointAt(0), isPUA: false };
@@ -160,7 +204,7 @@ export function compileOpenTypeFont({ fontName, metrics, glyphs }) {
     const glyph = new opentype.Glyph({
       name: `uni${unicode.toString(16).toUpperCase().padStart(4, '0')}`,
       unicode,
-      advanceWidth: Math.round(UNITS_PER_EM * 0.62),
+      advanceWidth,
       path,
     });
     glyphList.push(glyph);
@@ -197,7 +241,7 @@ export function downloadTTF(fontName, metrics, glyphs) {
   document.body.appendChild(a);
   a.click();
   a.remove();
-  URL.revokeObjectURL(a.href);
+  { const u = a.href; setTimeout(() => URL.revokeObjectURL(u), 1500); }
 
   if (puaMap.length > 0) {
     console.info(

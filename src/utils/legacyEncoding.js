@@ -97,14 +97,17 @@ export function unicodeToLegacy(text) {
 
     if (CONSONANT_TO_LEGACY[ch]) {
       const cByte = CONSONANT_TO_LEGACY[ch];
-      const next = text[i + 1];
+      let j = i + 1;
+      let pre = '';
+      let post = '';
+      if (text[j] === 'ො')      { pre = PRE_E_BYTE; post += POST_AA_BYTE;  j++; }
+      else if (text[j] === 'ෝ') { pre = PRE_E_BYTE; post += POST_AAE_BYTE; j++; }
+      else if (PRE_BASE_TO_LEGACY[text[j]]) { pre = PRE_BASE_TO_LEGACY[text[j]]; j++; }
+      // any number of further post-base marks (e.g. ිං, ාං, ්)
+      while (j < text.length && POST_BASE_TO_LEGACY[text[j]]) { post += POST_BASE_TO_LEGACY[text[j]]; j++; }
 
-      if (next === 'ො') { out += PRE_E_BYTE + cByte + POST_AA_BYTE;  i += 2; continue; }
-      if (next === 'ෝ') { out += PRE_E_BYTE + cByte + POST_AAE_BYTE; i += 2; continue; }
-      if (next && PRE_BASE_TO_LEGACY[next])  { out += PRE_BASE_TO_LEGACY[next] + cByte; i += 2; continue; }
-      if (next && POST_BASE_TO_LEGACY[next]) { out += cByte + POST_BASE_TO_LEGACY[next]; i += 2; continue; }
-
-      out += cByte; i += 1; continue; // inherent 'a', no dependent sign follows
+      out += pre + cByte + post;
+      i = j; continue;
     }
 
     if (INDEP_VOWEL_TO_LEGACY[ch]) { out += INDEP_VOWEL_TO_LEGACY[ch]; i += 1; continue; }
@@ -132,21 +135,23 @@ export function legacyToUnicode(text) {
 
       if (!consonantChar) { out += ch; i += 1; continue; } // malformed input, pass through safely
 
-      if (ch === PRE_E_BYTE) {
-        const third = text[i + 2];
-        if (third === POST_AA_BYTE)  { out += consonantChar + 'ො'; i += 3; continue; }
-        if (third === POST_AAE_BYTE) { out += consonantChar + 'ෝ'; i += 3; continue; }
-      }
-      out += consonantChar + LEGACY_TO_PRE_BASE[ch]; // reorder back to Unicode logical order
-      i += 2; continue;
+      let j = i + 2;
+      let marks = '';
+      if (ch === PRE_E_BYTE && text[j] === POST_AA_BYTE)       { marks = 'ො'; j++; }
+      else if (ch === PRE_E_BYTE && text[j] === POST_AAE_BYTE) { marks = 'ෝ'; j++; }
+      else marks = LEGACY_TO_PRE_BASE[ch];
+      while (j < text.length && LEGACY_TO_POST_BASE[text[j]]) { marks += LEGACY_TO_POST_BASE[text[j]]; j++; }
+      out += consonantChar + marks;
+      i = j; continue;
     }
 
-    // Consonant byte — optional POST-base byte follows
+    // Consonant byte — any number of POST-base bytes follow
     if (LEGACY_TO_CONSONANT[ch]) {
-      const consonantChar = LEGACY_TO_CONSONANT[ch];
-      const next = text[i + 1];
-      if (next && LEGACY_TO_POST_BASE[next]) { out += consonantChar + LEGACY_TO_POST_BASE[next]; i += 2; continue; }
-      out += consonantChar; i += 1; continue;
+      let j = i + 1;
+      let marks = '';
+      while (j < text.length && LEGACY_TO_POST_BASE[text[j]]) { marks += LEGACY_TO_POST_BASE[text[j]]; j++; }
+      out += LEGACY_TO_CONSONANT[ch] + marks;
+      i = j; continue;
     }
 
     // Independent vowel byte

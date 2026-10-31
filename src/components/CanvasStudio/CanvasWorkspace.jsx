@@ -358,7 +358,10 @@ export default function CanvasWorkspace({
   const stopDrawing = useCallback(() => {
     if (!isDrawingRef.current) return; isDrawingRef.current=false;
     if (predictCanvasRef.current) predictCanvasRef.current.getContext('2d').clearRect(0,0,CS,CS);
-    const raw=[...strokeRef.current]; if (raw.length<2) return;
+    let raw=[...strokeRef.current];
+    // A tap is a valid DOT (ං, ඃ, full-stop...) — keep it as a 2-point stroke on the same spot
+    if (raw.length===1 && !raw[0].isEraser) raw=[raw[0],{...raw[0],x:raw[0].x+0.1}];
+    if (raw.length<2) { strokeRef.current=[]; lastPtRef.current=null; mirrorLastPtRef.current=null; return; }
     let stroke = raw[0]?.isEraser ? raw : rdpSimplify(raw, 1.5);
     if (!isEraser && brushMode==='tapered' && !isPenRef.current && stroke.length>12) {
       stroke=stroke.map((pt,i)=>{

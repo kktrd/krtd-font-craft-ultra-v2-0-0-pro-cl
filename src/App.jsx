@@ -39,6 +39,10 @@ import VersionHistoryPanel  from './components/CanvasStudio/VersionHistoryPanel.
 import TextStudioWorkspace from './components/TextStudio/TextStudioWorkspace.jsx';
 import AdminDashboard      from './components/Admin/AdminDashboard.jsx';
 
+// ── Safe storage helpers (blocked storage / private mode / quota exceeded must never crash the UI)
+const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); return true; } catch { return false; } };
+
 // ── Supabase singleton ───────────────────────────────────────────────────────
 const SB_URL = import.meta.env.VITE_SUPABASE_URL      || '';
 const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
@@ -48,7 +52,7 @@ const supabase = (SB_URL && SB_URL.includes('supabase.co'))
 // ── Root App ─────────────────────────────────────────────────────────────────
 function AppInner() {
   // ── Theme & navigation ───────────────────────────────────────────────────
-  const [theme,     setTheme]     = useState(() => localStorage.getItem('krtd_theme') || 'comfort');
+  const [theme,     setTheme]     = useState(() => lsGet('krtd_theme') || 'comfort');
   const [activeTab, setActiveTab] = useState('canvas');
   const [hasVisitedTextStudio, setHasVisitedTextStudio] = useState(false);
   const T = getTokens(theme);
@@ -62,7 +66,7 @@ function AppInner() {
   const [authLoading, setAuthLoading] = useState(false);
 
   // ── UI flags ─────────────────────────────────────────────────────────────
-  const [showHelp,     setShowHelp]     = useState(() => !localStorage.getItem('krtd_guide_seen'));
+  const [showHelp,     setShowHelp]     = useState(() => !lsGet('krtd_guide_seen'));
   const [cloudLoading, setCloudLoading] = useState(false);
   const [mobileSheet,  setMobileSheet]  = useState(null);   // 'atlas' | 'metrics'
   const [showHistory,  setShowHistory]  = useState(false);
@@ -76,7 +80,7 @@ function AppInner() {
   const [fontName,     setFontName]     = useState('KRTD-FontCraft-Pro');
   const [glyphs,       setGlyphs]       = useState(() => {
     try {
-      const raw    = localStorage.getItem('krtd_font_craft_glyphs');
+      const raw    = lsGet('krtd_font_craft_glyphs');
       const parsed = raw ? JSON.parse(raw) : {};
       return verifyStorageIntegrity(parsed) ? parsed : {};
     } catch { return {}; }
@@ -210,12 +214,11 @@ function AppInner() {
   }, []);
 
   // ── Theme persist ────────────────────────────────────────────────────────
-  useEffect(() => { localStorage.setItem('krtd_theme', theme); }, [theme]);
+  useEffect(() => { lsSet('krtd_theme', theme); }, [theme]);
 
   // ── Glyph auto-save — always to localStorage first ───────────────────────
   useEffect(() => {
-    localStorage.setItem('krtd_font_craft_glyphs', JSON.stringify(glyphs));
-    markSaved();
+    if (lsSet('krtd_font_craft_glyphs', JSON.stringify(glyphs))) markSaved();
   }, [glyphs]);
 
   // ── Cloud auto-sync with debounce (2 s) ─────────────────────────────────
@@ -250,7 +253,7 @@ function AppInner() {
       if (showAlert) toast(`☁️ "${fontName}" cloud save වුනා!`, 'success');
     } catch (err) {
       // silently mirror to localStorage on fail — no work loss
-      localStorage.setItem('krtd_cloud_pending', JSON.stringify({ fontName, metrics, glyphs }));
+      lsSet('krtd_cloud_pending', JSON.stringify({ fontName, metrics, glyphs }));
       if (showAlert) toast(`❌ Cloud error: ${err.message} — 💾 local copy saved.`, 'error');
     }
   };
@@ -546,7 +549,7 @@ function AppInner() {
             {/* Fixed footer — button always visible and reachable regardless of body scroll position */}
             <div className={`flex-shrink-0 p-6 pt-4 border-t ${T.divider}`}>
               <button
-                onClick={() => { setShowHelp(false); localStorage.setItem('krtd_guide_seen', '1'); }}
+                onClick={() => { setShowHelp(false); lsSet('krtd_guide_seen', '1'); }}
                 className={`w-full py-3 rounded-xl text-xs font-black uppercase tracking-wider ${T.btn}`}
               >
                 හරි, ස්ටුඩියෝ එකට යමු →

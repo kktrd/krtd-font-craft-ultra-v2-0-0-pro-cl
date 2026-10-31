@@ -34,7 +34,7 @@ export class Trie {
     }
     const results = [];
     const dfs = (n) => {
-      if (results.length >= limit * 3) return;
+      if (results.length >= 500) return; // high safety cap; ranking happens after full collection
       if (n.isEnd) results.push({ word: n.word, freq: n.freq });
       for (const ch in n.children) dfs(n.children[ch]);
     };

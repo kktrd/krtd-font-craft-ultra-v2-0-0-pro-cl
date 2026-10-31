@@ -54,6 +54,6 @@ export async function exportAllPNGsAsZip(fontName, glyphs) {
   a.href = URL.createObjectURL(blob);
   a.download = `${fontName || 'KRTD-Font'}_glyphs.zip`;
   document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(a.href);
+  { const u = a.href; setTimeout(() => URL.revokeObjectURL(u), 1500); }
   return entries.length;
 }

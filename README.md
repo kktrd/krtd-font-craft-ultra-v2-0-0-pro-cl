@@ -355,3 +355,18 @@ individually instead of a shared dimmed ancestor.
 - Fixed desktop shell uses `100dvh` (no jump from mobile browser toolbars).
 - Inputs are 16px on small screens (no iOS auto-zoom); larger touch targets and slider thumbs on touch devices; glyph hover-scale only on hover devices.
 - Toast stack fits 320px screens; canvas centred in its panel.
+
+## v3.7.1
+- Modals/sheets use dynamic viewport height; 9px labels bump to 10px on phones; footer padding/alignment tuned for small screens; reduced-motion respected for sheet animations; landscape-phone sheet height.
+
+## v3.8.0 – Deep logic audit
+Fixed (all verified by running the real code in Node; tests live in `tests/logic.test.mjs`, run automatically by GitHub Actions on every push):
+- Transliteration: `oo` now gives ෝ (was ො); `ng` no longer produces a broken `ං්` (nga before a vowel, anusvara otherwise); capital letters mid-sentence (e.g. "Pasal") no longer corrupt the whole word; `c`→ච, `T`→ඨ added.
+- Legacy converter: `ං` and stacked marks (ිං, ාං) are now actually encoded/decoded.
+- Trie: suggestions are now truly ranked by frequency (a pruning cut-off used to drop top words).
+- Font compiler: per-glyph advance width + side bearings from the real drawn shape (was one fixed width, causing overlap), a space glyph, and dots/taps (ං, ඃ, full stop) are exported instead of dropped.
+- Canvas: a single tap now draws a dot instead of being discarded.
+- Text Studio: accepting a suggestion / editing the output no longer makes earlier text vanish on the next keystroke.
+- Storage: blocked/full localStorage can no longer crash the app on load.
+- Downloads: blob URLs revoked after a delay (Safari-safe).
+Known design limits (not code bugs): guests share the `guest` cloud row namespace, so two guests using the same font name share one row; fix needs a SQL migration (composite unique key).

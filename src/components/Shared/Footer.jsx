@@ -8,7 +8,7 @@ export default function Footer({ T }) {
 
   return (
     <footer className={`border-t mt-8 lg:mt-0 lg:flex-shrink-0 safe-bottom transition-all ${T.card}`}>
-      <div className="max-w-[1600px] mx-auto px-6 py-4 flex flex-col sm:flex-row justify-between items-center gap-3">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-4 flex flex-col sm:flex-row text-center sm:text-left justify-between items-center gap-3">
 
         {/* Copyright — high-contrast, bold, clickable to open full legal + contact info */}
         <button
