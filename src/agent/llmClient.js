@@ -6,19 +6,22 @@
 import { sanitizeActions } from './actionSchema.js';
 
 const TIMEOUT_MS = 28000;
-export const PROVIDER_LABELS = { gemini: 'Gemini AI', zai: 'Z.AI GLM', anthropic: 'Claude AI' };
+/** Developer-only labels (Admin -> Diagnostics). Never shown to regular users. */
+export const PROVIDER_LABELS = { gemini: 'Google Gemini', zai: 'Z.AI GLM', anthropic: 'Anthropic Claude' };
 
-export async function askClaude({ supabase, message, history, snapshot }) {
+export async function askAI({ supabase, message, history, snapshot }) {
   return callAgent({ supabase, message, history, snapshot });
 }
 
-/** Which AI providers does the server have keys for? (no model call, no cost) */
-export async function pingAI(supabase) {
-  const r = await callAgent({ supabase, message: '__ping__', history: [], snapshot: {}, ping: true });
-  return r.ok ? { ok: true, providers: r.providers } : r;
+/**
+ * Is cloud AI switched on? (no model call, no cost). With detail=true the server only
+ * returns provider names/models to admins; everyone else just gets { enabled }.
+ */
+export async function pingAI(supabase, detail = false) {
+  return callAgent({ supabase, message: '__ping__', history: [], snapshot: {}, ping: true, detail });
 }
 
-async function callAgent({ supabase, message, history, snapshot, ping = false }) {
+async function callAgent({ supabase, message, history, snapshot, ping = false, detail = false }) {
   if (!supabase) return { ok: false, reason: 'no_cloud' };
   let token = null;
   try {
@@ -38,6 +41,7 @@ async function callAgent({ supabase, message, history, snapshot, ping = false })
         message: String(message).slice(0, 600),
         history: (history || []).slice(-6).map((m) => ({ role: m.role === 'user' ? 'user' : 'agent', text: String(m.text).slice(0, 500) })),
         snapshot,
+        ...(ping && detail ? { detail: true } : {}),
       }),
     });
     if (!res.ok) {
@@ -46,9 +50,9 @@ async function callAgent({ supabase, message, history, snapshot, ping = false })
       return { ok: false, reason: code };
     }
     const data = await res.json();
-    if (ping) return Array.isArray(data?.providers) ? { ok: true, providers: data.providers } : { ok: false, reason: 'bad_response' };
+    if (ping) return data?.ok ? { ok: true, enabled: !!data.enabled, providers: Array.isArray(data.providers) ? data.providers : null, models: data.models || null } : { ok: false, reason: 'bad_response' };
     if (typeof data?.reply !== 'string') return { ok: false, reason: 'bad_response' };
-    return { ok: true, reply: data.reply, actions: sanitizeActions(data.actions, 4), provider: typeof data.provider === 'string' ? data.provider : null };
+    return { ok: true, reply: data.reply, actions: sanitizeActions(data.actions, 4) };
   } catch (err) {
     return { ok: false, reason: err?.name === 'AbortError' ? 'timeout' : 'network' };
   } finally {
@@ -57,12 +61,12 @@ async function callAgent({ supabase, message, history, snapshot, ping = false })
 }
 
 export const REASON_TEXT = {
-  llm_not_configured: 'Cloud AI තවම ON කරලා නෑ (Vercel හි GEMINI_API_KEY / ZAI_API_KEY / ANTHROPIC_API_KEY නෑ) — local agent භාවිතා කරනවා.',
-  not_signed_in: 'Cloud AI (Gemini / Claude / Z.AI) ඕන නම් Login වෙන්න (Designer). දැන් local agent භාවිතා කරනවා.',
-  llm_blocked: 'AI එක මේ ප්‍රශ්නයට පිළිතුරු දුන්නේ නෑ (safety block) — local agent.',
-  llm_timeout: 'AI එක ප්‍රමාද වැඩියි — local agent.',
-  llm_empty: 'AI එකෙන් හිස් පිළිතුරක් ආවා — local agent.',
-  no_cloud: 'Cloud සම්බන්ධ නෑ — local agent භාවිතා කරනවා.',
-  rate_limited: 'Claude AI ඉල්ලීම් ගොඩක් — ටිකක් ඉඩ දීලා ආයෙ try කරන්න. දැන් local agent.',
-  unauthorized: 'Login session එක කල් ඉකුත් වෙලා — ආයෙ login වෙන්න. දැන් local agent.',
+  llm_not_configured: 'AI සහාය දැනට ලබාගත නොහැක — මගේ built-in දැනුමෙන් උත්සාහ කරනවා.',
+  not_signed_in: 'ඕනෑම ප්‍රශ්නයකට AI සහාය ඕන නම් Login වෙන්න. දැන් built-in agent එකෙන් උත්සාහ කරනවා.',
+  llm_blocked: 'මේ ප්‍රශ්නයට AI එකෙන් පිළිතුරක් ලැබුණේ නෑ — built-in agent එකෙන් උත්සාහ කරනවා.',
+  llm_timeout: 'AI එක ප්‍රමාද වැඩියි — built-in agent එකෙන් උත්සාහ කරනවා.',
+  llm_empty: 'AI එකෙන් පිළිතුරක් ආවේ නෑ — built-in agent එකෙන් උත්සාහ කරනවා.',
+  no_cloud: 'Cloud සම්බන්ධ නෑ — built-in agent එකෙන් උත්සාහ කරනවා.',
+  rate_limited: 'ඉල්ලීම් ගොඩක් — ටිකක් ඉඩ දීලා ආයෙ try කරන්න. දැන් built-in agent එකෙන් උත්සාහ කරනවා.',
+  unauthorized: 'Login session එක කල් ඉකුත් වෙලා — ආයෙ login වෙන්න. දැන් built-in agent එකෙන් උත්සාහ කරනවා.',
 };

@@ -29,6 +29,12 @@ export function configuredProviders(env = process.env) {
   return available;
 }
 
+/** Model actually used per configured provider (shown to admins only). */
+export function providerModels(env = process.env) {
+  const m = { gemini: env.GEMINI_MODEL || 'gemini-flash-latest', zai: env.ZAI_MODEL || 'glm-5.2', anthropic: env.ANTHROPIC_MODEL || 'claude-sonnet-5-5' };
+  return Object.fromEntries(configuredProviders(env).map((id) => [id, m[id]]));
+}
+
 const trimBase = (u) => String(u).replace(/\/+$/, '');
 
 async function post(url, headers, body, signal) {

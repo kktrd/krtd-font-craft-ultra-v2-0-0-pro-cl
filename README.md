@@ -389,3 +389,6 @@ Open with the 🤖 button (bottom-right) or **Alt+A**.
 - Sinhala/Unicode: strict Sinhala-Unicode instructions in the system prompt, JSON-mode output, NFC normalization and control/replacement-character stripping on every reply.
 - The Agent header shows which AI is on (`LOCAL + GEMINI`) via a free `__ping__` call; each AI answer carries a provider badge.
 - Model names change often — override with `GEMINI_MODEL` / `ZAI_MODEL` / `ANTHROPIC_MODEL` without touching code.
+
+## v4.1.1 – AI provider hidden from end users
+- Users only see a generic "AI" / "SMART" badge. Provider names, models and key hints are shown ONLY in Admin -> Diagnostics ("Agent cloud AI backend") and only to admin / super_admin accounts (verified server-side). The API never returns the provider name in answers.

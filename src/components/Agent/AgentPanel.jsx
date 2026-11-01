@@ -4,7 +4,7 @@ import { useToast } from '../Shared/NotificationProvider.jsx';
 import { analyzeProject } from '../../agent/projectAnalyzer.js';
 import { localReply, autoFixList, label } from '../../agent/agentBrain.js';
 import { runAgentAction } from '../../agent/agentExecutor.js';
-import { askClaude, pingAI, REASON_TEXT, PROVIDER_LABELS } from '../../agent/llmClient.js';
+import { askAI, pingAI, REASON_TEXT } from '../../agent/llmClient.js';
 import { buildSnapshot } from '../../agent/snapshot.js';
 import { useAgentAutopilot } from '../../hooks/useAgentAutopilot.js';
 import AgentGuideTab from './AgentGuideTab.jsx';
@@ -40,7 +40,7 @@ export default function AgentPanel({
   const setAutopilot = (v) => { setAutopilotState(v); lsSet('krtd_agent_autopilot', v ? '1' : '0'); };
   const setIdleMs = (v) => { setIdleMsState(v); lsSet('krtd_agent_idle', String(v)); };
 
-  const [aiProviders, setAiProviders] = useState(null); // null = unknown, [] = none configured
+  const [aiEnabled, setAiEnabled] = useState(null); // null = unknown, false = not switched on (no names shown to users)
   const llmOffRef = useRef(false);
   const noticedRef = useRef(new Set());
   const panelRef = useRef(null);
@@ -129,13 +129,13 @@ export default function AgentPanel({
       return;
     }
 
-    // Free-form question -> Claude (Designers only), with silent local fallback
+    // Free-form question -> cloud AI (Designers only), with silent local fallback
     if (supabase && authUser && !llmOffRef.current) {
       setBusy(true);
       const ctx = { fontName, selectedChar, metrics, brushMode, strokeWidth, signedIn: !!authUser, isOnline };
-      const res = await askClaude({ supabase, message: text, history, snapshot: buildSnapshot(analysisRef.current, ctx) });
+      const res = await askAI({ supabase, message: text, history, snapshot: buildSnapshot(analysisRef.current, ctx) });
       setBusy(false);
-      if (res.ok) { setMessages((m) => [...m, mk('agent', res.reply, { buttons: res.actions, source: res.provider || 'ai' })]); return; }
+      if (res.ok) { setMessages((m) => [...m, mk('agent', res.reply, { buttons: res.actions, source: 'ai' })]); return; }
       if (res.reason === 'llm_not_configured') llmOffRef.current = true;
       const note = REASON_TEXT[res.reason];
       if (note && !noticedRef.current.has(res.reason)) {
@@ -166,14 +166,13 @@ export default function AgentPanel({
     let alive = true;
     pingAI(supabase).then((r) => {
       if (!alive) return;
-      if (r.ok) { setAiProviders(r.providers); llmOffRef.current = r.providers.length === 0; }
-      else if (r.reason === 'llm_not_configured') { setAiProviders([]); llmOffRef.current = true; }
+      if (r.ok) { setAiEnabled(r.enabled); llmOffRef.current = !r.enabled; }
+      else if (r.reason === 'llm_not_configured') { setAiEnabled(false); llmOffRef.current = true; }
     });
     return () => { alive = false; };
   }, [open, supabase, authUser]);
 
-  const llmReady = !!(supabase && authUser && !llmOffRef.current && aiProviders?.length !== 0);
-  const aiLabel = aiProviders?.length ? PROVIDER_LABELS[aiProviders[0]]?.split(' ')[0].toUpperCase() : 'AI';
+  const llmReady = !!(supabase && authUser && !llmOffRef.current && aiEnabled !== false);
 
   return (
     <>
@@ -204,7 +203,7 @@ export default function AgentPanel({
             <div className="w-10 h-1 rounded-full bg-current opacity-20 mx-auto mb-2 lg:hidden" aria-hidden="true" />
             <div className="flex items-center justify-between">
               <h2 className="font-black text-sm flex items-center gap-2"><Bot className="w-4 h-4" aria-hidden="true" /> KRTD Agent
-                <span className="text-[9px] font-black px-1.5 py-0.5 rounded border border-current/20 opacity-70">{llmReady ? `LOCAL + ${aiLabel}` : 'LOCAL'}</span>
+                <span className="text-[9px] font-black px-1.5 py-0.5 rounded border border-current/20 opacity-70">{llmReady ? 'AI' : 'SMART'}</span>
               </h2>
               <button type="button" onClick={() => setOpen(false)} aria-label="Close Agent" className="p-1.5 rounded-lg opacity-70 hover:opacity-100"><X className="w-4 h-4" aria-hidden="true" /></button>
             </div>

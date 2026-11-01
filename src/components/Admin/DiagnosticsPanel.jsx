@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { APP_VERSION, BUILD_SHA, BUILD_DATE, EDITION } from '../../utils/versionInfo.js';
 import { FEATURE_FLAGS } from '../../utils/featureFlags.js';
+import { pingAI, PROVIDER_LABELS } from '../../agent/llmClient.js';
 
 /**
  * DiagnosticsPanel — the app verifies its OWN state live, in the browser,
@@ -64,6 +65,24 @@ async function runChecks(supabase) {
     }
   } else {
     results.push({ id: 'supabase', label: 'Supabase connection', ok: false, detail: 'not configured (offline mode)' });
+  }
+
+  // Cloud AI backend — developer/admin info only (end users never see provider names)
+  if (supabase) {
+    const r = await pingAI(supabase, true);
+    let detail;
+    if (r.ok && r.providers && r.providers.length) {
+      detail = r.providers.map(function (id) { return (PROVIDER_LABELS[id] || id) + (r.models && r.models[id] ? ' (' + r.models[id] + ')' : ''); }).join(' → ') + ' · fallback order';
+    } else if (r.ok) {
+      detail = 'enabled (provider details are visible to admin accounts only)';
+    } else if (r.reason === 'llm_not_configured') {
+      detail = 'no key set — add GEMINI_API_KEY / ZAI_API_KEY / ANTHROPIC_API_KEY in Vercel env vars, then redeploy';
+    } else if (r.reason === 'not_signed_in') {
+      detail = 'login required to test';
+    } else {
+      detail = 'unreachable: ' + r.reason + ' (is /api/agent deployed?)';
+    }
+    results.push({ id: 'ai', label: 'Agent cloud AI backend', ok: !!r.ok, detail: detail });
   }
 
   results.push({ id: 'worker', label: 'Web Worker support', ok: typeof Worker !== 'undefined', detail: typeof Worker !== 'undefined' ? 'available' : 'unavailable — falls back to main thread' });

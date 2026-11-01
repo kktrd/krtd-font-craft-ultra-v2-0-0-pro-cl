@@ -212,7 +212,7 @@ ta('api/agent: Gemini request shape + Sinhala Unicode reply', async () => {
     seen = { url, init }; return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: GOOD_JSON }] } }] }) };
   };
   const r = mkRes(); await handler(req(), r);
-  assert.equal(r.code, 200); assert.equal(r.body.provider, 'gemini');
+  assert.equal(r.code, 200); assert.equal('provider' in r.body, false, 'provider name must never reach the browser');
   assert.equal(r.body.reply, 'ක අඳින්න, ඉන්පසු ම');
   assert.ok(seen.url.includes('/models/gemini-x:generateContent'));
   assert.equal(seen.init.headers['x-goog-api-key'], 'gk');
@@ -232,15 +232,25 @@ ta('api/agent: Gemini blocked -> falls back to Z.AI (OpenAI-compatible)', async 
     return { ok: true, json: async () => ({ choices: [{ message: { content: GOOD_JSON } }] }) };
   };
   const r = mkRes(); await handler(req(), r);
-  assert.equal(r.code, 200); assert.equal(r.body.provider, 'zai');
+  assert.equal(r.code, 200); assert.equal('provider' in r.body, false);
   assert.ok(calls[0].includes('generativelanguage') && calls[1] === 'https://api.z.ai/api/paas/v4/chat/completions');
 });
-ta('api/agent: ping lists providers without calling any model; all-fail maps to 502', async () => {
+ta('api/agent: ping hides provider names from non-admins, shows them to admins', async () => {
   setEnv({ ...ENV, ZAI_API_KEY: 'zk' }); delete process.env.ANTHROPIC_API_KEY;
-  let modelCalls = 0;
-  globalThis.fetch = async (url) => { if (url.includes('/auth/v1/user')) return SBOK('u-ping'); modelCalls++; return { ok: false, status: 429, json: async () => ({}) }; };
-  let r = mkRes(); await handler(req({ body: { message: '__ping__' } }), r);
-  assert.deepEqual(r.body, { ok: true, providers: ['zai'] }); assert.equal(modelCalls, 0);
+  let modelCalls = 0; let role = null;
+  globalThis.fetch = async (url) => {
+    if (url.includes('/auth/v1/user')) return SBOK('u-ping');
+    if (url.includes('/rest/v1/user_roles')) return { ok: true, json: async () => (role ? [{ role }] : []) };
+    modelCalls++; return { ok: false, status: 429, json: async () => ({}) };
+  };
+  let r = mkRes(); await handler(req({ body: { message: '__ping__', detail: true } }), r);
+  assert.deepEqual(r.body, { ok: true, enabled: true });                      // regular designer: no names
+  role = 'designer'; r = mkRes(); await handler(req({ body: { message: '__ping__', detail: true } }), r);
+  assert.deepEqual(r.body, { ok: true, enabled: true });
+  role = 'super_admin'; r = mkRes(); await handler(req({ body: { message: '__ping__', detail: true } }), r);
+  assert.deepEqual(r.body.providers, ['zai']); assert.equal(r.body.models.zai, 'glm-5.2');
+  r = mkRes(); await handler(req({ body: { message: '__ping__' } }), r);       // no detail flag -> still hidden
+  assert.equal('providers' in r.body, false); assert.equal(modelCalls, 0);
   r = mkRes(); await handler(req(), r);
   assert.equal(r.code, 502); assert.equal(r.body.error, 'llm_http_429');
 });

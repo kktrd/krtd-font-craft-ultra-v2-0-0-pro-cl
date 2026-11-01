@@ -551,7 +551,7 @@ function AppInner() {
                   ['09','Reference Overlay (G)','Char එකක් type කරලා, ඒක ghost reference විදිහට පෙන්නා, consistency ඕන character draw කරන්න.'],
                   ['10','Specimen PDF','Metrics panel → "Export Specimen Sheet" — ඔයාගේ font එකේ සියලුම glyphs showcase PDF එකක්.'],
                   ['11','Stroke Prediction (P)','Draw කරද්දී, pen එකේ trajectory එකෙන් ඉදිරි path එක ghost line එකක් විදිහට preview කරනවා — actual stroke එකට effect කරන්නේ නෑ.'],
-                  ['12','KRTD Agent (Alt+A)','දකුණු පහළ 🤖 බොත්තම. ඔයාගේ project එක analyze කරලා health score, ඊළඟට අඳින්න ඕන අකුරු (predicted path), auto-fix, Autopilot workflow සහ chat commands (ක, fix all, save, export ttf) දෙනවා. Login වුණාම Claude AI වලටත් ප්‍රශ්න අහන්න පුළුවන්.'],
+                  ['12','KRTD Agent (Alt+A)','දකුණු පහළ 🤖 බොත්තම. ඔයාගේ project එක analyze කරලා health score, ඊළඟට අඳින්න ඕන අකුරු (predicted path), auto-fix, Autopilot workflow සහ chat commands (ක, fix all, save, export ttf) දෙනවා. Login වුණාම ඕනෑම ප්‍රශ්නයක් AI සහායෙන් අහන්න පුළුවන්.'],
                 ].map(([n, t, d]) => (
                   <div key={n} className={`p-3 rounded-xl border flex gap-3 ${T.sub}`}>
                     <span className={`font-black flex-shrink-0 text-sm ${T.accent}`}>{n}</span>
