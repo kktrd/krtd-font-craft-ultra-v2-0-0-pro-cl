@@ -370,3 +370,22 @@ Fixed (all verified by running the real code in Node; tests live in `tests/logic
 - Storage: blocked/full localStorage can no longer crash the app on load.
 - Downloads: blob URLs revoked after a delay (Safari-safe).
 Known design limits (not code bugs): guests share the `guest` cloud row namespace, so two guests using the same font name share one row; fix needs a SQL migration (composite unique key).
+
+---
+
+## v4.0.0 – KRTD Agent (in-app assistant)
+Open with the 🤖 button (bottom-right) or **Alt+A**.
+- **Guide** – project health score (0-100), coverage per section, *predicted path* (what to draw next and why), issues with one-tap fixes.
+- **Autopilot** – step-by-step workflow (metrics → anchors → style → consonants → vowels → extended → quality → export) with "Run next step", "Fix everything automatically" and optional auto-advance to the next predicted glyph after you finish one.
+- **Chat** – commands in Sinhala / Singlish / English (`ක`, `ඊළඟ අකුර?`, `fix all`, `save`, `export ttf`, `text studio`). Works 100% offline (local brain).
+- **Cloud AI (optional)** – free-form questions go to Gemini / Z.AI GLM / Claude through the Vercel function `api/agent.js`. Set any key in Vercel env vars (`GEMINI_API_KEY`, `ZAI_API_KEY`, `ANTHROPIC_API_KEY`; see `.env.example`). Needs a logged-in Designer (cost protection + rate limit). Without a key the Agent silently stays local.
+- **Safety** – the Agent can only run a whitelist of actions (`src/agent/actionSchema.js`), risky ones ask for confirmation, it never overwrites a drawn glyph and never draws for you. Fixes that change strokes are Undo-able.
+- Honest limits: path prediction and scoring are transparent heuristics (documented in `src/agent/knowledge.js`), not a trained model; the Agent does not generate letter shapes.
+- Rollback: set `ENABLE_AGENT: false` in `src/utils/featureFlags.js`.
+- CI: `.github/workflows` now runs the logic tests **and a full `npm run build`** on every push (see GitHub → Actions).
+
+## v4.1.0 – Multi-provider AI (Gemini · Z.AI · Claude)
+- `api/_providers.js`: Gemini (`generateContent`), Z.AI GLM (OpenAI-compatible `/chat/completions`) and Claude behind one interface. `AI_PROVIDER=auto` tries Gemini -> Claude -> Z.AI; if one fails/blocks, the next configured provider answers; if all fail the local agent answers.
+- Sinhala/Unicode: strict Sinhala-Unicode instructions in the system prompt, JSON-mode output, NFC normalization and control/replacement-character stripping on every reply.
+- The Agent header shows which AI is on (`LOCAL + GEMINI`) via a free `__ping__` call; each AI answer carries a provider badge.
+- Model names change often — override with `GEMINI_MODEL` / `ZAI_MODEL` / `ANTHROPIC_MODEL` without touching code.

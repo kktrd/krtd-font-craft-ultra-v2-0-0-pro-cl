@@ -205,3 +205,8 @@ body {
 @media (max-height: 480px) and (orientation: landscape) {
   .sheet-maxh { max-height: 92vh; max-height: 92dvh; }
 }
+
+/* Agent bottom sheet (phones/tablets) — dynamic viewport height */
+@media (max-width: 1023px) {
+  .agent-sheet { height: 85vh; height: 85dvh; }
+}

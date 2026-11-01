@@ -38,6 +38,7 @@ import BottomSheetDrawer    from './components/CanvasStudio/BottomSheetDrawer.js
 import VersionHistoryPanel  from './components/CanvasStudio/VersionHistoryPanel.jsx';
 import TextStudioWorkspace from './components/TextStudio/TextStudioWorkspace.jsx';
 import AdminDashboard      from './components/Admin/AdminDashboard.jsx';
+import AgentPanel          from './components/Agent/AgentPanel.jsx';
 
 // ── Safe storage helpers (blocked storage / private mode / quota exceeded must never crash the UI)
 const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -249,6 +250,7 @@ function AppInner() {
         updated_at:  new Date(),
       }, { onConflict: 'font_name' });
       if (error) throw error;
+      try { localStorage.removeItem('krtd_cloud_pending'); } catch { /* ignore */ }
       markSaved();
       if (showAlert) toast(`☁️ "${fontName}" cloud save වුනා!`, 'success');
     } catch (err) {
@@ -446,6 +448,21 @@ function AppInner() {
     }
   };
 
+  // ── Agent bridge: always the LATEST state/handlers (read at call time) ────
+  const agentApiRef = useRef(null);
+  agentApiRef.current = {
+    glyphs, metrics, selectedChar,
+    selectChar: setSelectedChar, goTab: setActiveTab,
+    setMetrics, setGlyphs, setStrokeWidth, setBrushMode,
+    pushUndo: (char, strokes) => { setUndoStack(u => [...u.slice(-49), { char, strokes }]); setRedoStack([]); },
+    learnStyle: learnStyleProfile,
+    pushCloud: async () => { await syncToCloud(true); },
+    exportTTF: compileTTF, exportPDF: exportSpecimenPDF, exportPNG: exportAllPNGs, exportJSON,
+    showHelp: () => setShowHelp(true),
+    confirm,
+  };
+  const getAgentApi = useCallback(() => agentApiRef.current, []);
+
   // ── Common sidebar props ─────────────────────────────────────────────────
   const metricsProps = {
     metrics, updateMetric,
@@ -534,6 +551,7 @@ function AppInner() {
                   ['09','Reference Overlay (G)','Char එකක් type කරලා, ඒක ghost reference විදිහට පෙන්නා, consistency ඕන character draw කරන්න.'],
                   ['10','Specimen PDF','Metrics panel → "Export Specimen Sheet" — ඔයාගේ font එකේ සියලුම glyphs showcase PDF එකක්.'],
                   ['11','Stroke Prediction (P)','Draw කරද්දී, pen එකේ trajectory එකෙන් ඉදිරි path එක ghost line එකක් විදිහට preview කරනවා — actual stroke එකට effect කරන්නේ නෑ.'],
+                  ['12','KRTD Agent (Alt+A)','දකුණු පහළ 🤖 බොත්තම. ඔයාගේ project එක analyze කරලා health score, ඊළඟට අඳින්න ඕන අකුරු (predicted path), auto-fix, Autopilot workflow සහ chat commands (ක, fix all, save, export ttf) දෙනවා. Login වුණාම Claude AI වලටත් ප්‍රශ්න අහන්න පුළුවන්.'],
                 ].map(([n, t, d]) => (
                   <div key={n} className={`p-3 rounded-xl border flex gap-3 ${T.sub}`}>
                     <span className={`font-black flex-shrink-0 text-sm ${T.accent}`}>{n}</span>
@@ -708,6 +726,16 @@ function AppInner() {
       </div>
 
       <Footer T={T}/>
+
+      {FEATURE_FLAGS.ENABLE_AGENT && (
+        <AgentPanel
+          T={T} glyphs={glyphs} metrics={metrics} selectedChar={selectedChar}
+          fontName={fontName} strokeWidth={strokeWidth} brushMode={brushMode}
+          styleLearned={!!styleProfile}
+          supabase={supabase} authUser={authUser} isOnline={isOnline}
+          getApi={getAgentApi}
+        />
+      )}
     </div>
   );
 }

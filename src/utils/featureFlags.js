@@ -26,6 +26,9 @@ export const FEATURE_FLAGS = {
 
   // Part 4
   ENABLE_STYLE_PROFILE_LEARNING: true,   // Brush-profile learning from anchors
+
+  // v4 — in-app assistant (local brain + optional Claude via /api/agent)
+  ENABLE_AGENT:                  true,
 };
 
 /** Safe accessor — always returns false for unknown keys instead of throwing. */

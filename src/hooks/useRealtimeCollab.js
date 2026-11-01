@@ -32,7 +32,7 @@ function loadOrCreateIdentity() {
     name:  randomName(),
     color: COLORS[Math.floor(Math.random() * COLORS.length)],
   };
-  sessionStorage.setItem('krtd_identity', JSON.stringify(identity));
+  try { sessionStorage.setItem('krtd_identity', JSON.stringify(identity)); } catch { /* storage blocked: identity lives for this page load only */ }
   return identity;
 }
 
