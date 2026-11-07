@@ -22,6 +22,7 @@ const ACTION_RULES = [
   { re: /\bpdf\b|specimen/,                           a: { id: 'export_pdf', args: {} } },
   { re: /\bpng\b/,                                    a: { id: 'export_png', args: {} } },
   { re: /\bjson\b|backup|බැකප්/,                      a: { id: 'export_json', args: {} } },
+  { re: /shape guide|hollow|outline guide|trace|guide shape|සම්මත හැඩ|හිස් හැඩ|හැඩ ?ගයිඩ/, a: { id: 'shape_guide', args: {} } },
   { re: /text studio|text tab|ටෙක්ස්ට්|test.?drive/,  a: { id: 'go_tab', args: { tab: 'text' } } },
   { re: /\badmin\b|ඇඩ්මින්/,                           a: { id: 'go_tab', args: { tab: 'admin' } } },
   { re: /canvas (tab|studio)|කැන්වස්/,                a: { id: 'go_tab', args: { tab: 'canvas' } } },

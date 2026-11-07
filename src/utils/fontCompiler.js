@@ -15,6 +15,7 @@
  */
 import opentype from 'opentype.js';
 import { FEATURE_FLAGS } from './featureFlags.js';
+import { strokeToContours, normalizeWinding } from './strokeOutline.js';
 
 const UNITS_PER_EM = 1000;
 const CANVAS_SIZE  = 500;
@@ -22,98 +23,22 @@ const SCALE        = UNITS_PER_EM / CANVAS_SIZE; // 2
 const PUA_START    = 0xF100; // Private Use Area base for ligature/composite glyph keys
 
 /**
- * Converts a single centerline stroke (array of {x,y,strokeWidth}) into a
- * closed outline polygon in FONT coordinate space (y-up, scaled, baseline-relative).
- */
-function strokeToOutlinePoints(stroke, baselineY) {
-  if (!stroke.length) return [];
-
-  // A tap / dot (single point, or all points on top of each other) must still
-  // produce a visible mark (e.g. ං, ඃ, full stop). Emit a 16-sided circle.
-  let spread = 0;
-  for (let i = 1; i < stroke.length; i++) {
-    spread = Math.max(spread, Math.hypot(stroke[i].x - stroke[0].x, stroke[i].y - stroke[0].y));
-  }
-  if (stroke.length < 2 || spread < 0.5) {
-    const c = stroke[0];
-    const r = Math.max(1, (c.strokeWidth || 8)) / 2;
-    const pts = [];
-    for (let k = 0; k < 16; k++) {
-      const a = (k / 16) * Math.PI * 2;
-      pts.push({ x: (c.x + Math.cos(a) * r) * SCALE, y: (baselineY - (c.y + Math.sin(a) * r)) * SCALE });
-    }
-    return pts;
-  }
-
-  const left = [];
-  const right = [];
-
-  for (let i = 0; i < stroke.length; i++) {
-    const p    = stroke[i];
-    const prev = stroke[i - 1] || p;
-    const next = stroke[i + 1] || p;
-    let dx = next.x - prev.x;
-    let dy = next.y - prev.y;
-    const len = Math.hypot(dx, dy) || 1;
-    dx /= len; dy /= len;
-    const px = -dy, py = dx; // perpendicular unit vector
-    const w  = Math.max(1, (p.strokeWidth || 8)) / 2;
-    left.push({ x: p.x + px * w, y: p.y + py * w });
-    right.push({ x: p.x - px * w, y: p.y - py * w });
-  }
-
-  // Build closed polygon: left forward, right reversed
-  const polygon = [...left, ...right.reverse()];
-
-  // Map canvas space (y-down) → font space (y-up, baseline-relative, scaled)
-  return polygon.map((pt) => ({
-    x: pt.x * SCALE,
-    y: (baselineY - pt.y) * SCALE,
-  }));
-}
-
-/**
- * Part 2.2 fix — Winding-direction normalization.
- * Computes the signed area of a polygon via the shoelace formula. If the
- * winding is counter-clockwise (negative area in a y-up system), reverses
- * the point order so EVERY contour in the glyph winds consistently.
- * Prevents unpredictable solid-fill / hollow-counter rendering when a
- * font rasterizer applies the nonzero winding rule across multiple
- * overlapping stroke-outline contours (e.g. enclosed counters in බ, ම, ර).
- */
-function normalizeWinding(points, clockwise = true) {
-  if (points.length < 3) return points;
-  let signedArea = 0;
-  for (let i = 0; i < points.length; i++) {
-    const a = points[i];
-    const b = points[(i + 1) % points.length];
-    signedArea += (a.x * b.y - b.x * a.y);
-  }
-  const isClockwise = signedArea < 0; // y-up convention: CW => negative shoelace sum
-  if (isClockwise !== clockwise) {
-    return [...points].reverse();
-  }
-  return points;
-}
-
-/**
  * Builds an opentype.Path for a single glyph from all its strokes.
- * Every contour is winding-normalized before being added to the path.
+ * Geometry lives in strokeOutline.js (smoothed centerline, round caps, union of convex pieces);
+ * every contour is winding-normalized so the NONZERO fill rule unions them cleanly.
  */
 export function buildGlyphPath(strokes, baselineY) {
   const path = new opentype.Path();
   strokes.forEach((stroke) => {
     if (stroke[0]?.isEraser) return; // skip eraser-only strokes
-    let poly = strokeToOutlinePoints(stroke, baselineY);
-    if (poly.length < 3) return;
-
-    if (FEATURE_FLAGS.ENABLE_WINDING_FIX) {
-      poly = normalizeWinding(poly, true); // force consistent clockwise winding
-    }
-
-    path.moveTo(poly[0].x, poly[0].y);
-    for (let i = 1; i < poly.length; i++) path.lineTo(poly[i].x, poly[i].y);
-    path.close();
+    strokeToContours(stroke, baselineY, SCALE).forEach((contour) => {
+      let poly = contour;
+      if (poly.length < 3) return;
+      if (FEATURE_FLAGS.ENABLE_WINDING_FIX) poly = normalizeWinding(poly, true);
+      path.moveTo(poly[0].x, poly[0].y);
+      for (let i = 1; i < poly.length; i++) path.lineTo(poly[i].x, poly[i].y);
+      path.close();
+    });
   });
   return path;
 }

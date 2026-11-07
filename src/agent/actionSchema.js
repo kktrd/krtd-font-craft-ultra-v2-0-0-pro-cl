@@ -27,6 +27,7 @@ export const ACTION_CATALOG = {
   export_pdf:          { label: 'Specimen PDF',         desc: 'Download the specimen sheet PDF.',      risky: false, args: {} },
   export_png:          { label: 'PNG ZIP',              desc: 'Download all glyphs as PNG ZIP.',       risky: false, args: {} },
   export_json:         { label: 'JSON backup',          desc: 'Download a JSON backup.',               risky: false, args: {} },
+  shape_guide:         { label: 'Shape Guide',          desc: 'Show/hide the hollow standard-shape tracing guide of the selected glyph (not saved).', risky: false, args: { on: 'true | false (omit to toggle)' } },
   show_help:           { label: 'Help guide',           desc: 'Open the help guide.',                  risky: false, args: {} },
 };
 
@@ -60,6 +61,9 @@ export function sanitizeAction(a) {
     case 'copy_glyph':
       if (!isGlyph(src.from) || !isGlyph(src.to) || src.from === src.to) return null;
       args.from = src.from; args.to = src.to; break;
+    case 'shape_guide':
+      if (typeof src.on === 'boolean') args.on = src.on;
+      break;
     default: break;
   }
   return { id: a.id, args };

@@ -54,6 +54,10 @@ export default function AgentGuideTab({ analysis, T, busy, onRun, selectedChar }
               </li>
             ))}
           </ol>
+          <button type="button" onClick={() => onRun({ id: 'shape_guide', args: { on: true } })}
+            className={`mt-2 w-full p-2 rounded-xl border text-[11px] font-bold ${T.btnGhost}`}>
+            Shape Guide පෙන්වන්න — "{selectedChar}" සඳහා හිස් සම්මත හැඩය (save වෙන්නේ නැහැ)
+          </button>
         </section>
       )}
 

@@ -95,6 +95,7 @@ export async function runAgentAction(action, api) {
       case 'export_pdf':   await api.exportPDF();   return { ok: true, message: 'PDF export ඉල්ලීම යැව්වා' };
       case 'export_png':   await api.exportPNG();   return { ok: true, message: 'PNG ZIP export ඉල්ලීම යැව්වා' };
       case 'export_json':  api.exportJSON();        return { ok: true, message: 'JSON backup බාගත වෙනවා' };
+      case 'shape_guide':  api.goTab('canvas'); api.setShapeGuide?.(typeof a.args.on === 'boolean' ? a.args.on : undefined); return { ok: true, message: 'Shape Guide (හිස් සම්මත හැඩය) මාරු කළා' };
       case 'show_help':    api.showHelp();          return { ok: true, message: 'Help guide විවෘත කළා' };
       default:             return { ok: false, message: 'නොදන්නා ක්‍රියාවක්' };
     }

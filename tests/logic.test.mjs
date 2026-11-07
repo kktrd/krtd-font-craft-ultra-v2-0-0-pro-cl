@@ -14,6 +14,8 @@ import { sanitizeAction, sanitizeActions } from '../src/agent/actionSchema.js';
 import { runAgentAction } from '../src/agent/agentExecutor.js';
 import handler from '../api/agent.js';
 import { configuredProviders } from '../api/_providers.js';
+import { strokeToContours, strokeToPolygons, normalizeWinding, centerlineSamples } from '../src/utils/strokeOutline.js';
+import * as G from '../src/utils/guideMath.js';
 import { DEFAULT_METRICS } from '../src/utils/glyphData.js';
 
 let n = 0;
@@ -127,6 +129,85 @@ t('agent: local reply understood flag', () => {
   assert.equal(localReply('save', a).run[0].id, 'push_cloud');
 });
 
+// ── Stroke outline (export geometry) ───────────────────────────────────────
+t('strokeOutline: curve → closed contours within brush bounds', () => {
+  const pts = [];
+  for (let i = 0; i <= 20; i++) pts.push({ x: 100 + i * 10, y: 250 + 80 * Math.sin(i / 3), strokeWidth: 10 });
+  const cs = strokeToContours(pts, 400, 2);
+  assert.ok(cs.length > 0 && cs.length < 400);
+  const xs = cs.flat().map(p => p.x), ys = cs.flat().map(p => p.y);
+  assert.ok(Math.min(...xs) >= (100 - 6) * 2 - 1 && Math.max(...xs) <= (300 + 6) * 2 + 1);
+  assert.ok(xs.every(Number.isFinite) && ys.every(Number.isFinite));
+  for (const c of cs) assert.ok(c.length >= 3);
+});
+t('strokeOutline: single dot → round blob', () => {
+  const cs = strokeToContours([{ x: 200, y: 200, strokeWidth: 20 }, { x: 200.1, y: 200, strokeWidth: 20 }], 400, 1);
+  assert.ok(cs.length >= 1);
+  const xs = cs.flat().map(p => p.x);
+  assert.ok(Math.max(...xs) - Math.min(...xs) >= 18);
+});
+t('strokeOutline: winding normalised to one direction', () => {
+  const sq = [{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 10, y: 10 }, { x: 0, y: 10 }];
+  const area = ps => ps.reduce((a, p, i) => { const q = ps[(i + 1) % ps.length]; return a + (p.x * q.y - q.x * p.y); }, 0);
+  const a = normalizeWinding(sq.slice(), true), b = normalizeWinding(sq.slice().reverse(), true);
+  assert.equal(Math.sign(area(a)), Math.sign(area(b)));
+});
+
+t('guideMath: fit, snap placement, clamping, preset sanitising', () => {
+  const box = { left: 0, right: 60, ascent: 80, descent: 20 };
+  const f = G.autoFitGuide(box, DEFAULT_METRICS);
+  assert.ok(f.fontSize >= 20 && f.fontSize <= 400 && f.cx === 250);
+  const params = G.mergeParams({ snap: true }, {});
+  const pl = G.placeGuide(box, box, params, DEFAULT_METRICS);
+  const b = G.placedBox(box, pl);
+  assert.ok(Math.abs(b.maxy - (DEFAULT_METRICS.baseline + pl.s * 20)) < 1e-6);            // sits on the baseline
+  assert.ok(Math.abs((b.maxy - 20 * pl.s) - (b.miny + 80 * pl.s)) < 1e-6);
+  assert.ok(Math.abs((b.maxy - b.miny) - (DEFAULT_METRICS.baseline - DEFAULT_METRICS.xHeight)) < 1e-6); // anchor fills x-height..baseline
+  const c = G.clampAdj({ scale: 99, dx: -999, rot: 'x' });
+  assert.equal(c.scale, 2.2); assert.equal(c.dx, -250); assert.equal(c.rot, 0);
+  const s = G.clampSettings({ style: 'evil', snap: 'yes', gscale: 9 });
+  assert.equal(s.style, 'sans'); assert.equal(s.snap, false); assert.equal(s.gscale, 2);
+  const pre = G.clampPreset({ on: 1, settings: { style: 'serif' }, adj: { 'ක': { scale: 5 }, 'abc': {} } });
+  assert.equal(pre.on, false); assert.equal(pre.settings.style, 'serif'); assert.equal(pre.adj['ක'].scale, 2.2); assert.ok(!pre.adj.abc);
+  assert.deepEqual(sanitizeAction({ id: 'shape_guide', args: { on: true, evil: 1 } }), { id: 'shape_guide', args: { on: true } });
+  assert.deepEqual(sanitizeAction({ id: 'shape_guide', args: { on: 'yes' } }), { id: 'shape_guide', args: {} });
+  assert.equal(parseIntent('show hollow shape guide', { glyphs: {}, metrics: DEFAULT_METRICS, selectedChar: 'ක' }).actions[0].id, 'shape_guide');
+});
+t('guideMath: piece order (body first, marks left→right)', () => {
+  const w = 40, h = 40, m = new Uint8Array(w * h);
+  const rect = (x0, y0, x1, y1) => { for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) m[y * w + x] = 1; };
+  rect(10, 12, 26, 30);            // body
+  rect(32, 4, 35, 7);              // mark right-top
+  rect(4, 4, 7, 7);                // mark left-top
+  m[39 * w + 39] = 1;              // 1px noise → dropped
+  const ps = G.orderPieces(G.labelComponents(m, w, h));
+  assert.equal(ps.length, 3);
+  assert.deepEqual(ps.map((p) => p.n), [1, 2, 3]);
+  assert.ok(ps[0].area > ps[1].area && ps[1].cx < ps[2].cx);
+  assert.ok(ps[0].startY <= 13);   // start point near the top of the body
+});
+t('guideMath: similarity meter', () => {
+  const w = 60, h = 60, mk = (x0, y0, x1, y1) => { const m = new Uint8Array(w * h); for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) m[y * w + x] = 1; return m; };
+  const A = mk(10, 10, 40, 14);
+  assert.equal(G.similarity(A, A, w, h, 3).score, 100);
+  const near = G.similarity(A, mk(10, 12, 40, 16), w, h, 3).score;
+  const far = G.similarity(A, mk(10, 45, 40, 49), w, h, 3).score;
+  assert.ok(near >= 90 && far <= 10, `${near} ${far}`);
+  assert.equal(G.similarity(A, new Uint8Array(w * h), w, h), null);
+});
+t('guideMath: style match ratio / shift', () => {
+  const pairs = [
+    { drawn: { minx: 100, maxx: 300, miny: 100, maxy: 300 }, guide: { minx: 100, maxx: 200, miny: 120, maxy: 220 } },
+    { drawn: { minx: 50, maxx: 250, miny: 200, maxy: 400 }, guide: { minx: 50, maxx: 150, miny: 220, maxy: 320 } },
+  ];
+  assert.equal(G.matchRatio(pairs), 2);
+  assert.equal(G.matchRatio([{ drawn: { minx: 0, maxx: 10, miny: 0, maxy: 10 }, guide: { minx: 0, maxx: 100, miny: 0, maxy: 100 } }]), 0.5); // clamped
+  assert.equal(G.matchShift([{ drawn: { miny: 100, maxy: 200 }, guide: { miny: 120, maxy: 220 } }]), -20);
+  assert.equal(G.matchRatio([]), null);
+  assert.deepEqual(G.strokesBox([[{ x: 1, y: 2 }, { x: 5, y: 9 }]]), { minx: 1, maxx: 5, miny: 2, maxy: 9 });
+  assert.equal(G.strokesBox([]), null);
+});
+
 // ── Executor with a fake app API ───────────────────────────────────────────
 const asyncT = [];
 const ta = (name, fn) => asyncT.push([name, fn]);
@@ -137,7 +218,7 @@ const fakeApi = (over = {}) => {
     selectChar: (c) => { st.sel = c; }, goTab: (x) => { st.tab = x; },
     setMetrics: (m) => { st.metrics = m; }, setGlyphs: (f) => { st.glyphs = typeof f === 'function' ? f(st.glyphs) : f; },
     setStrokeWidth() {}, setBrushMode() {}, pushUndo: (c, s2) => st.undo.push([c, s2]),
-    learnStyle() {}, pushCloud: async () => {}, exportTTF: async () => {}, exportPDF: async () => {}, exportPNG: async () => {}, exportJSON() {}, showHelp() {},
+    learnStyle() {}, pushCloud: async () => {}, exportTTF: async () => {}, exportPDF: async () => {}, exportPNG: async () => {}, exportJSON() {}, showHelp() {}, setShapeGuide(on) { globalThis.__sg = on; },
     confirm: async () => st.confirmAnswer ?? true,
   } };
 };

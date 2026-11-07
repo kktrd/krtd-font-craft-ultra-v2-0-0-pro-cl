@@ -459,6 +459,7 @@ function AppInner() {
     pushCloud: async () => { await syncToCloud(true); },
     exportTTF: compileTTF, exportPDF: exportSpecimenPDF, exportPNG: exportAllPNGs, exportJSON,
     showHelp: () => setShowHelp(true),
+    setShapeGuide: (on) => window.dispatchEvent(new CustomEvent('krtd:shape-guide', { detail: { on } })),
     confirm,
   };
   const getAgentApi = useCallback(() => agentApiRef.current, []);

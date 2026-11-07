@@ -3,10 +3,22 @@ import { useToast } from '../Shared/NotificationProvider.jsx';
 import {
   Paintbrush, Eraser, Undo2, Redo2, Minus, Plus,
   Grid3X3, Sparkles, Layers, ChevronUp, Image,
-  Keyboard, ClipboardPaste, Ruler, FlipHorizontal2, Layers3, Pen
+  Keyboard, ClipboardPaste, Ruler, FlipHorizontal2, Layers3, Pen, Shapes
 } from 'lucide-react';
 import { rdpSimplify } from '../../utils/rdpSimplifier.js';
 import { GLYPH_VARIATION_RULES } from '../../utils/glyphData.js';
+import {
+  drawShapeGuide, guideSupported, clearGuideCache, scoreAgainstGuide, computeStyleMatch,
+  fontStack, mergeParams, clampSettings, clampAdj, clampPreset, defaultSettings,
+} from '../../utils/shapeGuide.js';
+import ShapeGuidePanel from './ShapeGuidePanel.jsx';
+import ShapeCompare from './ShapeCompare.jsx';
+
+const GUIDE_KEY = 'krtd_shape_guide_v1';
+const loadGuidePreset = () => {
+  try { return clampPreset(JSON.parse(localStorage.getItem(GUIDE_KEY) || 'null')); }
+  catch { return clampPreset(null); }
+};
 
 const CS = 500;
 const MIRROR_AXIS = CS / 2;
@@ -31,6 +43,7 @@ export default function CanvasWorkspace({
 }) {
   const canvasRef    = useRef(null);
   const predictCanvasRef = useRef(null);
+  const guideCanvasRef   = useRef(null);
   const containerRef = useRef(null);
   const contextRef   = useRef(null);
   const isDrawingRef = useRef(false);
@@ -59,8 +72,73 @@ export default function CanvasWorkspace({
   // ── Onion-skin reference overlay ─────────────────────────────────────────
   const [referenceMode, setReferenceMode] = useState(false);
   const [referenceChar, setReferenceChar] = useState('');
+  // ── Shape Guide (hollow standard shape, tracing aid only — never saved into the font) ──
+  const [guidePreset] = useState(loadGuidePreset);       // restored from this device's localStorage
+  const [shapeOn,   setShapeOn]   = useState(guidePreset.on);
+  const [guideSet,  setGuideSet]  = useState(guidePreset.settings);   // global settings
+  const [guideMap,  setGuideMap]  = useState(guidePreset.adj);        // per-letter adjustments
+  const [fontTick,  setFontTick]  = useState(0);
+  const [guideOk,   setGuideOk]   = useState(true);
+  const [guideScore, setGuideScore] = useState(null);
+  const [matchMsg,  setMatchMsg]  = useState('');
+  const guideAdj    = guideMap[selectedChar] || clampAdj(null);
+  const guideParams = mergeParams(guideSet, guideAdj);
+  const patchSettings = (patch) => setGuideSet(g => clampSettings({ ...g, ...patch }));
+  const patchAdj      = (patch) => setGuideMap(m => ({ ...m, [selectedChar]: clampAdj({ ...(m[selectedChar] || {}), ...patch }) }));
+  const resetGuideChar = () => setGuideMap(m => { const n = { ...m }; delete n[selectedChar]; return n; });
+  const resetGuideAll  = () => { setGuideMap({}); setGuideSet(defaultSettings()); };
+  const matchGuideStyle = () => {
+    const r = computeStyleMatch(glyphs, guideSet, guideMap, metrics);
+    if (!r) { setMatchMsg('ක ම න ර ය අකුරු ඇඳපු පසු භාවිතා කරන්න'); return; }
+    patchSettings({ gscale: r.gscale, gdy: r.gdy });
+    setMatchMsg(`ඔයාගේ ${r.used.join(' ')} අනුව ගැලපුවා`);
+  };
+  useEffect(() => { if (matchMsg) { const t = setTimeout(() => setMatchMsg(''), 4000); return () => clearTimeout(t); } }, [matchMsg]);
+  // remember on this device only
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try { localStorage.setItem(GUIDE_KEY, JSON.stringify({ on: shapeOn, settings: guideSet, adj: guideMap })); } catch { /* storage blocked */ }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [shapeOn, guideSet, guideMap]);
   const referenceInputId = useId();
   const { toast } = useToast();
+
+  // Agent / other parts can toggle the guide through a window event
+  useEffect(() => {
+    const h = (e) => setShapeOn(e.detail && typeof e.detail.on === 'boolean' ? e.detail.on : (s => !s));
+    window.addEventListener('krtd:shape-guide', h);
+    return () => window.removeEventListener('krtd:shape-guide', h);
+  }, []);
+
+  // Make sure the chosen Sinhala web font is loaded before drawing the guide
+  useEffect(() => {
+    if (!shapeOn || !document.fonts?.load) return;
+    let live = true;
+    document.fonts.load(`100px ${fontStack(guideSet.style)}`, selectedChar)
+      .then(() => { if (live) { clearGuideCache(); setFontTick(t => t + 1); } }).catch(() => {});
+    return () => { live = false; };
+  }, [shapeOn, selectedChar, guideSet.style]);
+
+  // Draw the guide on its own overlay canvas
+  useEffect(() => {
+    const gc = guideCanvasRef.current; if (!gc) return;
+    const gctx = gc.getContext('2d');
+    if (!shapeOn) { gctx.clearRect(0, 0, CS, CS); return; }
+    setGuideOk(guideSupported(selectedChar, guideSet.style));
+    drawShapeGuide(gctx, selectedChar, guideParams, metrics, theme);
+  }, [shapeOn, selectedChar, guideSet, guideMap, metrics, theme, fontTick]);
+
+  // Accuracy meter (debounced; reads the strokes, writes nothing)
+  const guideStrokes = glyphs[selectedChar];
+  useEffect(() => {
+    if (!shapeOn || !guideSet.meter) { setGuideScore(null); return; }
+    const t = setTimeout(() => {
+      try { setGuideScore(scoreAgainstGuide(selectedChar, guideStrokes, guideParams, metrics)); }
+      catch { setGuideScore(null); }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [shapeOn, guideSet, guideMap, selectedChar, guideStrokes, metrics, fontTick]);
 
   // ── Responsive container width ─────────────────────────────────────────
   useEffect(() => {
@@ -237,6 +315,7 @@ export default function CanvasWorkspace({
         case 'x': setMirrorMode(s=>!s);  break;
         case 'p': setPredictMode(s=>!s); break;
         case 'g': setReferenceMode(s=>!s); break;
+        case 'h': setShapeOn(s=>!s); break;
         case '[': setStrokeWidth(w=>Math.max(2,w-2));  break;
         case ']': setStrokeWidth(w=>Math.min(48,w+2)); break;
         case '1': setZoomLevel(1);   break;
@@ -607,6 +686,15 @@ export default function CanvasWorkspace({
         </div>
       )}
 
+      {shapeOn && (
+        <ShapeGuidePanel T={T} char={selectedChar} settings={guideSet} adj={guideAdj} supported={guideOk}
+          score={guideScore} matchMsg={matchMsg}
+          onSettings={patchSettings} onAdj={patchAdj} onResetChar={resetGuideChar} onResetAll={resetGuideAll}
+          onMatch={matchGuideStyle} onHide={() => setShapeOn(false)}>
+          <ShapeCompare T={T} char={selectedChar} strokes={guideStrokes} params={guideParams} metrics={metrics} fontTick={fontTick} />
+        </ShapeGuidePanel>
+      )}
+
       {/* Brush controls */}
       <div className={`flex flex-wrap items-center gap-x-3 gap-y-2 p-2.5 rounded-xl border text-[10px] font-black ${T.sub}`}>
         <div className="flex items-center gap-1" role="group" aria-label="Brush mode">
@@ -638,6 +726,10 @@ export default function CanvasWorkspace({
             className={`px-2 py-1 rounded-lg border transition flex items-center gap-1 ${predictMode?predictAc:'opacity-70 hover:opacity-100'}`}>
             <Sparkles className="w-3 h-3" aria-hidden="true"/> Predict
           </button>
+          <button onClick={()=>setShapeOn(s=>!s)} title="Shape Guide — hollow standard shape (H)" aria-pressed={shapeOn}
+            className={`px-2 py-1 rounded-lg border transition flex items-center gap-1 ${shapeOn?'bg-sky-500/20 border-sky-500/50 text-sky-500':'opacity-70 hover:opacity-100'}`}>
+            <Shapes className="w-3 h-3" aria-hidden="true"/> Shape
+          </button>
           <button onClick={()=>setReferenceMode(s=>!s)} title="Onion-Skin Reference (G)" aria-pressed={referenceMode}
             className={`px-2 py-1 rounded-lg border transition flex items-center gap-1 ${referenceMode?refAc:'opacity-70 hover:opacity-100'}`}>
             <Layers3 className="w-3 h-3" aria-hidden="true"/> Reference
@@ -660,10 +752,15 @@ export default function CanvasWorkspace({
         style={{ touchAction:'none', height:`${displaySize+4}px` }}>
         <div style={{ position:'relative', margin:'0 auto', width:`${displaySize}px`, height:`${displaySize}px` }}>
           <canvas
+            ref={guideCanvasRef} width={CS} height={CS}
+            aria-hidden="true"
+            style={{ position:'absolute', top:0, left:0, width:`${displaySize}px`, height:`${displaySize}px`, pointerEvents:'none' }}
+          />
+          <canvas
             ref={canvasRef} width={CS} height={CS}
             role="img"
             aria-label={`Drawing canvas for character ${selectedChar}. Requires mouse, touch, or stylus input — not keyboard-operable.`}
-            style={{ width:`${displaySize}px`, height:`${displaySize}px`, display:'block', cursor:'crosshair' }}
+            style={{ position:'relative', zIndex:1, width:`${displaySize}px`, height:`${displaySize}px`, display:'block', cursor:'crosshair' }}
             onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing}
             onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
             onPointerMove={handlePointerMove}
@@ -671,7 +768,7 @@ export default function CanvasWorkspace({
           <canvas
             ref={predictCanvasRef} width={CS} height={CS}
             aria-hidden="true"
-            style={{ position:'absolute', top:0, left:0, width:`${displaySize}px`, height:`${displaySize}px`, pointerEvents:'none' }}
+            style={{ position:'absolute', zIndex:2, top:0, left:0, width:`${displaySize}px`, height:`${displaySize}px`, pointerEvents:'none' }}
           />
         </div>
       </div>

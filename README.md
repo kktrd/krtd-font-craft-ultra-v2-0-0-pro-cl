@@ -392,3 +392,25 @@ Open with the 🤖 button (bottom-right) or **Alt+A**.
 
 ## v4.1.1 – AI provider hidden from end users
 - Users only see a generic "AI" / "SMART" badge. Provider names, models and key hints are shown ONLY in Admin -> Diagnostics ("Agent cloud AI backend") and only to admin / super_admin accounts (verified server-side). The API never returns the provider name in answers.
+
+## v4.2.0 — Export now matches the canvas
+- TTF/OTF export uses new `src/utils/strokeOutline.js`: same quadratic smoothing as the canvas, round caps and joints, tap → dot. Glyphs are no longer angular/flat-ended.
+- Contours unioned with nonzero winding (`normalizeWinding`), so tight curves don't leave holes.
+- Tests added (28 groups). Trade-off: slightly more contour points per glyph → slightly larger font file.
+
+## v4.3.0 — Shape Guide (hollow standard shape)
+- Canvas toolbar **Shape** button (or key **H**): shows a hollow, outline-only standard shape of the selected letter under the drawing canvas.
+- Adjust per letter: size, left/right, up/down, rotate, line weight, opacity, dashed; Auto-fit / Reset.
+- Tracing aid only: drawn on a separate overlay canvas — never saved to glyph data, history, cloud, PNG or TTF export.
+- Uses the loaded Noto Sans Sinhala (or the device's Sinhala font); a notice appears if none is available.
+- Agent: new `shape_guide` action + button in the Guide tab ("Shape Guide පෙන්වන්න").
+
+## v4.4.0 — Shape Guide upgrade
+- **Styles**: Sans, Serif, Classic (Abhaya Libre), Soft (Yaldevi), Modern (Gemunu Libre) — separate font links in index.html so a failed font never breaks the app.
+- **1·2·3 order**: numbered start points per piece (body first, then marks left→right). Automatic estimate from the glyph shape, not hand-authored stroke data.
+- **Metrics snap**: one shared scale (anchor ක fills x-height→baseline) and baseline alignment for every letter.
+- **Match my style**: sizes/shifts the guide from the anchors (ක ම න ර ය) you already drew.
+- **Accuracy meter**: F1 of drawn ink vs guide shape (tolerance ~16px). Aid only, not a grade.
+- **Compare view**: standard · yours · overlay.
+- **Remembered on this device** (localStorage `krtd_shape_guide_v1`); never saved to glyphs/cloud/exports.
+- Tests: 32 groups; DOM drawing/scoring code also executed in headless Chromium (no Sinhala font there, so shapes themselves were not eyeballed).
