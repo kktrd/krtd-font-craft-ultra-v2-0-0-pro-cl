@@ -21,22 +21,16 @@ export default defineConfig({
     __BUILD_SHA__:   JSON.stringify(buildSha),
     __BUILD_DATE__:  JSON.stringify(buildDate),
   },
+  // Valid Vite option (the old `build.esbuildOptions` was silently ignored).
+  // Only 'debugger' is dropped, deliberately NOT 'console': the console calls here are
+  // legitimate production diagnostics (ErrorBoundary, service-worker, storage warnings)
+  // or the intentional console branding.
+  esbuild: { drop: ['debugger'] },
   build: {
     outDir: 'dist',
     sourcemap: false,
     minify: 'esbuild',          // esbuild is built-in — no extra install
     target: 'es2020',
-    esbuildOptions: {
-      // NOTE: only 'debugger' is dropped, deliberately NOT 'console'. This
-      // codebase's console calls are all legitimate production diagnostics
-      // (ErrorBoundary's console.error, service-worker registration
-      // warnings, storage-integrity warnings) or an intentional branding
-      // feature (printConsoleBranding) — dropping 'console' wholesale would
-      // silently strip all of these from the production build, defeating
-      // their purpose. There is no actual debug-noise console.log left in
-      // this codebase to justify the blanket drop.
-      drop: ['debugger'],
-    },
     rollupOptions: {
       output: {
         manualChunks: {
