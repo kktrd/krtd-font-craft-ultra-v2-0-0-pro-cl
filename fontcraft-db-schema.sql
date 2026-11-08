@@ -246,3 +246,10 @@ CREATE POLICY "admin_read_history" ON public.glyph_history FOR SELECT USING (pub
 --     FROM public.glyph_history
 --   ) ranked WHERE rn <= 20
 -- );
+
+-- Function hardening (v4.5): fixed search_path; table-size RPC only for signed-in users
+ALTER FUNCTION public.get_table_sizes() SET search_path = public;
+ALTER FUNCTION public.get_user_role(text) SET search_path = public;
+ALTER FUNCTION public.set_updated_at() SET search_path = public;
+REVOKE EXECUTE ON FUNCTION public.get_table_sizes() FROM PUBLIC, anon;
+GRANT  EXECUTE ON FUNCTION public.get_table_sizes() TO authenticated;
