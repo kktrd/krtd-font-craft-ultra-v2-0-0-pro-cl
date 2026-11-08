@@ -99,7 +99,7 @@ export function drawShapeGuide(ctx, ch, p, metrics, theme) {
   if (p.dashed) ctx.setLineDash([5 / pl.s, 4 / pl.s]);
   ctx.strokeStyle = color;
   ctx.strokeText(ch, 0, 0);                              // OUTLINE ONLY → hollow shape
-  if (p.order) {
+  if (p.order && !/\p{M}/u.test(ch)) {   // combining signs: no piece numbers (the ◌ base would be numbered)
     ctx.setLineDash([]); ctx.globalAlpha = Math.max(0.85, p.opacity);
     const r = 9 / pl.s;
     for (const pc of guidePieces(ch, p.style)) {

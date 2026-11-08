@@ -79,6 +79,7 @@ export default function CanvasWorkspace({
   const [guideMap,  setGuideMap]  = useState(guidePreset.adj);        // per-letter adjustments
   const [fontTick,  setFontTick]  = useState(0);
   const [guideOk,   setGuideOk]   = useState(true);
+  const [fontLoaded, setFontLoaded] = useState(true);
   const [guideScore, setGuideScore] = useState(null);
   const [matchMsg,  setMatchMsg]  = useState('');
   const guideAdj    = guideMap[selectedChar] || clampAdj(null);
@@ -116,7 +117,8 @@ export default function CanvasWorkspace({
     if (!shapeOn || !document.fonts?.load) return;
     let live = true;
     document.fonts.load(`100px ${fontStack(guideSet.style)}`, selectedChar)
-      .then(() => { if (live) { clearGuideCache(); setFontTick(t => t + 1); } }).catch(() => {});
+      .then((faces) => { if (live) { setFontLoaded(!!(faces && faces.length)); clearGuideCache(); setFontTick(t => t + 1); } })
+      .catch(() => { if (live) setFontLoaded(false); });
     return () => { live = false; };
   }, [shapeOn, selectedChar, guideSet.style]);
 
@@ -687,7 +689,7 @@ export default function CanvasWorkspace({
       )}
 
       {shapeOn && (
-        <ShapeGuidePanel T={T} char={selectedChar} settings={guideSet} adj={guideAdj} supported={guideOk}
+        <ShapeGuidePanel T={T} char={selectedChar} settings={guideSet} adj={guideAdj} supported={guideOk} fontLoaded={fontLoaded}
           score={guideScore} matchMsg={matchMsg}
           onSettings={patchSettings} onAdj={patchAdj} onResetChar={resetGuideChar} onResetAll={resetGuideAll}
           onMatch={matchGuideStyle} onHide={() => setShapeOn(false)}>

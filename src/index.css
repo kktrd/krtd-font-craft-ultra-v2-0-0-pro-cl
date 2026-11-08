@@ -168,8 +168,11 @@ body {
   padding-right: env(safe-area-inset-right);
 }
 .sheet-maxh { max-height: 75vh; max-height: 75dvh; }
+/* Desktop: header stays, the work area below it is the ONE scroll container.
+   Plain CSS (not lg: utilities) so it always applies. Below 1024px the page scrolls normally. */
 @media (min-width: 1024px) {
-  .app-shell { height: 100vh; height: 100dvh; }
+  .app-root   { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+  .app-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
 }
 @media (max-width: 1023px) {
   input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),

@@ -414,3 +414,10 @@ Open with the 🤖 button (bottom-right) or **Alt+A**.
 - **Compare view**: standard · yours · overlay.
 - **Remembered on this device** (localStorage `krtd_shape_guide_v1`); never saved to glyphs/cloud/exports.
 - Tests: 32 groups; DOM drawing/scoring code also executed in headless Chromium (no Sinhala font there, so shapes themselves were not eyeballed).
+
+## v4.4.1 — Desktop scroll fix + compact Shape panel
+- **Fix**: on desktop (≥1024px) the page below the header could not scroll (canvas hidden under the Shape panel). Root cause: the layout used `lg:app-shell`, but `.app-shell` is plain CSS, so Tailwind never generated that `lg:` variant. Now `.app-root` / `.app-scroll` are plain CSS in index.css: the header stays, the work area is the one scroll container; below 1024px the page scrolls normally. Verified in headless Chromium at 1866×990, 1280×720 and 800×900.
+- Shape panel is compact by default: styles, toggles and a one-line accuracy bar; sliders / Match / Reset are under “Adjust”.
+- Font check: if the chosen guide style's web font did not load, the panel says so (falls back to another font).
+- Fonts confirmed with Sinhala support: Noto Sans/Serif Sinhala, Abhaya Libre, Yaldevi, Gemunu Libre.
+- Combining signs (ං ා ි …) no longer get numbered pieces.

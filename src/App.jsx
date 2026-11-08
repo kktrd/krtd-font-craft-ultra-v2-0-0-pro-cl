@@ -488,7 +488,7 @@ function AppInner() {
   // ────────────────────────────────────────────────────────────────────────
   return (
     <div
-      className={`min-h-screen lg:app-shell lg:overflow-hidden lg:flex lg:flex-col font-sans transition-colors duration-200 ${T.bg}`}
+      className={`min-h-screen app-root font-sans transition-colors duration-200 ${T.bg}`}
       style={{ overscrollBehavior: 'none' }}
     >
       <SkipLink />
@@ -640,7 +640,7 @@ function AppInner() {
       />
 
       {/* Live collaborator presence strip */}
-      <div className="lg:flex-1 lg:overflow-y-auto lg:min-h-0">
+      <div className="app-scroll">
       <CollabPresence collaborators={collaborators} selfId={identity.id} T={T} />
 
       {/* ── CANVAS TAB ───────────────────────────────────────────────────── */}

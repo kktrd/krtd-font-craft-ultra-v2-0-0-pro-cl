@@ -1,5 +1,5 @@
-import React from 'react';
-import { Shapes, RotateCcw, EyeOff, Wand2 } from 'lucide-react';
+import React, { useState } from 'react';
+import { Shapes, RotateCcw, EyeOff, Wand2, ChevronDown } from 'lucide-react';
 import { GUIDE_LIMITS, GUIDE_STYLES } from '../../utils/guideMath.js';
 
 const ADJ_ROWS = [
@@ -26,7 +26,7 @@ const Slider = ({ k, label, fmt, value, onChange }) => (
 
 /** Controls for the hollow Shape Guide. Guide only — never saved into the font. */
 export default function ShapeGuidePanel({
-  T, char, settings, adj, supported, score, matchMsg,
+  T, char, settings, adj, supported, fontLoaded = true, score, matchMsg,
   onSettings, onAdj, onResetChar, onResetAll, onMatch, onHide, children,
 }) {
   const tog = (key, label) => (
@@ -34,17 +34,23 @@ export default function ShapeGuidePanel({
       className={`px-2 py-1 rounded-lg border text-[10px] font-black ${settings[key] ? T.btn : T.btnGhost}`}>{label}</button>
   );
   const pct = score ? score.score : 0;
+  const [adjOpen, setAdjOpen] = useState(false);
   return (
     <div className="p-2.5 rounded-xl border bg-sky-500/10 border-sky-500/30 space-y-2.5" role="group" aria-label="Shape guide">
       <div className="flex items-center gap-2">
         <Shapes className="w-4 h-4 text-sky-500 flex-shrink-0" aria-hidden="true" />
         <span className="text-[10px] font-bold text-sky-500 flex-1">
-          Shape Guide: <span className="font-sinhala text-sm">{char}</span> — හිස් සම්මත හැඩය. මේක මත ඇඳලා ඔයාගේ විදියට customize කරගන්න.
+          Shape Guide <span className="font-sinhala text-sm">{char}</span> — හිස් සම්මත හැඩය (save වෙන්නේ නැහැ)
         </span>
         <button onClick={onHide} aria-label="Hide shape guide" className={`p-1.5 rounded-lg border ${T.btnGhost}`}>
           <EyeOff className="w-3.5 h-3.5" aria-hidden="true" /></button>
       </div>
 
+      {supported && !fontLoaded && (
+        <p className="text-[10px] text-amber-500 font-bold" role="status">
+          මේ style එකේ font එක load වුණේ නැහැ (internet?) — වෙනත් font එකකින් පෙන්වනවා. වෙන style එකක් තෝරන්න.
+        </p>
+      )}
       {!supported && (
         <p className="text-[10px] text-amber-500 font-bold" role="status">
           මේ style එකේ සිංහල font එක මේ device එකේ නැහැ — වෙන style එකක් තෝරන්න.
@@ -64,46 +70,47 @@ export default function ShapeGuidePanel({
       </div>
 
       {settings.meter && (
-        <div role="status" aria-live="polite">
-          <div className="flex items-center justify-between text-[10px] font-bold mb-1">
-            <span className="opacity-80">ගැලපීම (guide එකට ළඟ බව)</span>
-            <span className="font-mono">{score ? `${pct}%` : '—'}</span>
-          </div>
-          <div className="h-1.5 rounded-full bg-sky-500/20 overflow-hidden">
+        <div role="status" aria-live="polite" className="flex items-center gap-2 text-[10px] font-bold"
+          title={score ? `හැඩය ${score.precision}% · වැසීම ${score.recall}% — ඔයාගේ style එකට ලකුණු දෙන්නේ නැහැ, ඇඳීමට උපකාරයක් පමණයි.` : 'අකුර ඇන්දම පෙන්වයි.'}>
+          <span className="opacity-80 flex-shrink-0">ගැලපීම</span>
+          <div className="flex-1 h-1.5 rounded-full bg-sky-500/20 overflow-hidden">
             <div className="h-full bg-sky-500 transition-all" style={{ width: `${pct}%` }} />
           </div>
-          <p className="text-[9px] opacity-60 mt-1">
-            {score ? `හැඩය ${score.precision}% · වැසීම ${score.recall}% — ඔයාගේ style එකට ලකුණු දෙන්නේ නැහැ, ඇඳීමට උපකාරයක් පමණයි.` : 'අකුර ඇන්දම පෙන්වයි.'}
-          </p>
+          <span className="font-mono w-9 text-right">{score ? `${pct}%` : '—'}</span>
         </div>
       )}
 
-      {settings.order && (
-        <p className="text-[9px] opacity-70">රතු අංක = ඇඳිය යුතු කොටස් අනුපිළිවෙල (ආසන්න ඇස්තමේන්තුවක්: ප්‍රධාන හැඩය → ඊළඟට සලකුණු).</p>
-      )}
-
+      <button type="button" onClick={() => setAdjOpen(o => !o)} aria-expanded={adjOpen}
+        className={`w-full flex items-center justify-center gap-1 py-1 rounded-lg border text-[10px] font-black ${T.btnGhost}`}>
+        Adjust · Match · Reset <ChevronDown className={`w-3 h-3 transition-transform ${adjOpen ? 'rotate-180' : ''}`} aria-hidden="true" />
+      </button>
+      {adjOpen && (
+        <div className="space-y-2.5">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
-        {ADJ_ROWS.map(([k, label, fmt]) => (
-          <Slider key={k} k={k} label={label} fmt={fmt} value={adj[k]} onChange={(v) => onAdj({ [k]: v })} />
-        ))}
-        {SET_ROWS.map(([k, label, fmt]) => (
-          <Slider key={k} k={k} label={label} fmt={fmt} value={settings[k]} onChange={(v) => onSettings({ [k]: v })} />
-        ))}
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2">
-        <button onClick={onMatch}
-          className={`px-2 py-1 rounded-lg border text-[10px] font-black flex items-center gap-1 ${T.accentBg}`}>
-          <Wand2 className="w-3 h-3" aria-hidden="true" /> Match my style
-        </button>
-        <button onClick={onResetChar}
-          className={`px-2 py-1 rounded-lg border text-[10px] font-black flex items-center gap-1 ${T.btnGhost}`}>
-          <RotateCcw className="w-3 h-3" aria-hidden="true" /> Reset (මේ අකුර)
-        </button>
-        <button onClick={onResetAll} className={`px-2 py-1 rounded-lg border text-[10px] font-black ${T.btnGhost}`}>Reset all</button>
-        {matchMsg && <span className="text-[10px] font-bold text-sky-500" role="status">{matchMsg}</span>}
-      </div>
-      <p className="text-[9px] opacity-60">Guide settings මේ device එකේ විතරක් මතක තියාගන්නවා. Glyph / font / cloud එකට යන්නේ නැහැ.</p>
+          {ADJ_ROWS.map(([k, label, fmt]) => (
+            <Slider key={k} k={k} label={label} fmt={fmt} value={adj[k]} onChange={(v) => onAdj({ [k]: v })} />
+          ))}
+          {SET_ROWS.map(([k, label, fmt]) => (
+            <Slider key={k} k={k} label={label} fmt={fmt} value={settings[k]} onChange={(v) => onSettings({ [k]: v })} />
+          ))}
+        </div>
+  
+        <div className="flex flex-wrap items-center gap-2">
+          <button onClick={onMatch}
+            className={`px-2 py-1 rounded-lg border text-[10px] font-black flex items-center gap-1 ${T.accentBg}`}>
+            <Wand2 className="w-3 h-3" aria-hidden="true" /> Match my style
+          </button>
+          <button onClick={onResetChar}
+            className={`px-2 py-1 rounded-lg border text-[10px] font-black flex items-center gap-1 ${T.btnGhost}`}>
+            <RotateCcw className="w-3 h-3" aria-hidden="true" /> Reset (මේ අකුර)
+          </button>
+          <button onClick={onResetAll} className={`px-2 py-1 rounded-lg border text-[10px] font-black ${T.btnGhost}`}>Reset all</button>
+          {matchMsg && <span className="text-[10px] font-bold text-sky-500" role="status">{matchMsg}</span>}
+        </div>
+        <p className="text-[9px] opacity-60">Guide settings මේ device එකේ විතරක් මතක තියාගන්නවා. Glyph / font / cloud එකට යන්නේ නැහැ.</p>
+  
+          </div>
+      )}
 
       {settings.compare && children}
     </div>
