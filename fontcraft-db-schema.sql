@@ -73,12 +73,12 @@ ALTER TABLE public.user_roles    ENABLE ROW LEVEL SECURITY;
 CREATE OR REPLACE FUNCTION public.is_admin() RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT EXISTS (SELECT 1 FROM public.user_roles
-                 WHERE user_id = auth.uid()::text AND role IN ('admin','super_admin'));
+                 WHERE user_id = (select auth.uid())::text AND role IN ('admin','super_admin'));
 $$;
 CREATE OR REPLACE FUNCTION public.is_super_admin() RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
   SELECT EXISTS (SELECT 1 FROM public.user_roles
-                 WHERE user_id = auth.uid()::text AND role = 'super_admin');
+                 WHERE user_id = (select auth.uid())::text AND role = 'super_admin');
 $$;
 REVOKE ALL ON FUNCTION public.is_admin(), public.is_super_admin() FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.is_admin(), public.is_super_admin() TO anon, authenticated;
@@ -104,7 +104,7 @@ CREATE POLICY "public_read_public" ON public.font_projects
 
 -- signed-in users: only their own rows
 CREATE POLICY "own_rows" ON public.font_projects FOR ALL TO authenticated
-  USING (auth.uid()::text = user_id) WITH CHECK (auth.uid()::text = user_id);
+  USING ((select auth.uid())::text = user_id) WITH CHECK ((select auth.uid())::text = user_id);
 
 -- guests: one row-set per device, owner id  g:<random uuid>  (made by the app)
 CREATE POLICY "device_guest_rows" ON public.font_projects FOR ALL TO anon, authenticated
@@ -125,10 +125,10 @@ CREATE POLICY "auth_insert_audit" ON public.audit_log
   FOR INSERT WITH CHECK (true);
 
 CREATE POLICY "auth_read_own_audit" ON public.audit_log
-  FOR SELECT USING (auth.uid()::text = user_id);
+  FOR SELECT USING ((select auth.uid())::text = user_id);
 
 -- user_roles policies
-CREATE POLICY "own_role_read"      ON public.user_roles FOR SELECT USING (user_id = auth.uid()::text);
+CREATE POLICY "own_role_read"      ON public.user_roles FOR SELECT USING (user_id = (select auth.uid())::text);
 CREATE POLICY "admin_read_roles"   ON public.user_roles FOR SELECT USING (public.is_admin());
 CREATE POLICY "admin_manage_roles" ON public.user_roles FOR ALL
   USING (public.is_super_admin()) WITH CHECK (public.is_super_admin());
@@ -217,7 +217,7 @@ DROP POLICY IF EXISTS "history_insert_owner" ON public.glyph_history;
 --     housekeeping runs with the service role, which bypasses RLS)
 CREATE POLICY "history_read_owner" ON public.glyph_history
   FOR SELECT USING (
-    user_id = auth.uid()::text
+    user_id = (select auth.uid())::text
     OR (user_id LIKE 'g:%' AND length(user_id) >= 34)
     OR user_id = 'guest'
     OR EXISTS (SELECT 1 FROM public.font_projects fp
@@ -226,7 +226,7 @@ CREATE POLICY "history_read_owner" ON public.glyph_history
 
 CREATE POLICY "history_insert_owner" ON public.glyph_history
   FOR INSERT WITH CHECK (
-    (user_id = auth.uid()::text OR (user_id LIKE 'g:%' AND length(user_id) >= 34))
+    (user_id = (select auth.uid())::text OR (user_id LIKE 'g:%' AND length(user_id) >= 34))
     AND EXISTS (SELECT 1 FROM public.font_projects fp
                 WHERE fp.font_name = glyph_history.font_name AND fp.user_id = glyph_history.user_id)
   );
