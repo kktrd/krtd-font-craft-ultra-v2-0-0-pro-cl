@@ -393,9 +393,22 @@ function AppInner() {
     try {
       const { downloadTTF } = await import('./utils/fontCompiler.js');
       const count = downloadTTF(fontName, metrics, glyphs);
-      toast(`🎉 "${fontName}.ttf" — ${count} glyphs compiled! Install to use in Word, Canva, Photoshop.`, 'success', 6000);
+      toast(`🎉 "${fontName}.ttf" (TrueType) — ${count} glyphs compiled! Install to use in Word, Canva, Photoshop.`, 'success', 6000);
     } catch (err) {
       toast(`❌ TTF compile error: ${err.message}`, 'error');
+    } finally {
+      setCloudLoading(false);
+    }
+  };
+
+  const compileOTF = async () => {
+    setCloudLoading(true);
+    try {
+      const { downloadOTF } = await import('./utils/fontCompiler.js');
+      const count = await downloadOTF(fontName, metrics, glyphs);
+      toast(`🎉 "${fontName}.otf" (OpenType CFF) — ${count} glyphs compiled!`, 'success', 6000);
+    } catch (err) {
+      toast(`❌ OTF compile error: ${err.message}`, 'error');
     } finally {
       setCloudLoading(false);
     }
@@ -481,6 +494,7 @@ function AppInner() {
     onImportJSON: () => fileInputRef.current.click(),
     onCompileSVG: compileSVG,
     onCompileTTF: compileTTF,
+    onCompileOTF: compileOTF,
     onExportSpecimenPDF: exportSpecimenPDF,
     onOpenHistory: openHistorySheet,
     onLearnStyleProfile: learnStyleProfile,

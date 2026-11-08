@@ -16,6 +16,7 @@ import handler from '../api/agent.js';
 import { configuredProviders } from '../api/_providers.js';
 import { strokeToContours, strokeToPolygons, normalizeWinding, centerlineSamples } from '../src/utils/strokeOutline.js';
 import * as G from '../src/utils/guideMath.js';
+import { buildTrueTypeFont, signedArea, cleanContour, postScriptName } from '../src/utils/ttfWriter.js';
 import { getGuestOwner, ownerIdFor, isGuestOwner } from '../src/utils/ownerId.js';
 import { DEFAULT_METRICS } from '../src/utils/glyphData.js';
 
@@ -221,6 +222,75 @@ t('ownerId: stable per-device guest id, auth id wins, blocked storage still work
   globalThis.localStorage = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); } };
   const m1 = getGuestOwner(); assert.equal(m1, getGuestOwner()); assert.ok(isGuestOwner(m1));
   delete globalThis.localStorage;
+});
+
+t('strokeOutline: gentle curves have no wedge gaps on the outer edge', () => {
+  const R = 90, W = 14, N = 40, pts = [];
+  for (let i = 0; i <= N; i++) pts.push({ x: 250 + R * Math.cos(i / N * 6.2832), y: 250 + R * Math.sin(i / N * 6.2832), strokeWidth: W });
+  const polys = strokeToPolygons(pts);
+  const inside = (pt, poly) => { let w = 0; for (let i = 0; i < poly.length; i++) { const a = poly[i], b = poly[(i + 1) % poly.length];
+    if (a.y <= pt.y) { if (b.y > pt.y && (b.x - a.x) * (pt.y - a.y) - (pt.x - a.x) * (b.y - a.y) > 0) w++; }
+    else if (b.y <= pt.y && (b.x - a.x) * (pt.y - a.y) - (pt.x - a.x) * (b.y - a.y) < 0) w--; } return w !== 0; };
+  let misses = 0;
+  for (let k = 1; k < 800; k++) { const ang = k / 800 * 6.2832;      // walk the OUTER and INNER ring edges (0.5px inside)
+    for (const r of [R + W / 2 - 0.5, R - W / 2 + 0.5]) {
+      const pt = { x: 250 + r * Math.cos(ang), y: 250 + r * Math.sin(ang) };
+      if (!polys.some(p => inside(pt, p))) misses++; } }
+  assert.equal(misses, 0, `${misses} uncovered edge samples`);
+});
+
+t('ttfWriter: valid TrueType structure, checksums, cmap, glyf round-trip', () => {
+  const sq = (x, y, s) => [{ x, y }, { x, y: y + s }, { x: x + s, y: y + s }, { x: x + s, y }];   // clockwise (y-up)
+  const bytes = buildTrueTypeFont({
+    familyName: 'Test Font', styleName: 'Regular', unitsPerEm: 1000, ascender: 800, descender: -200, xHeight: 400, capHeight: 700,
+    names: { copyright: 'c', version: 'Version 1.000' },
+    glyphs: [
+      { name: '.notdef', unicode: null, advance: 500, contours: [sq(50, 0, 400)] },
+      { name: 'space', unicode: 32, advance: 300, contours: [] },
+      { name: 'uni0D9A', unicode: 0x0D9A, advance: 600, contours: [sq(60, -20, 300), sq(300, 100, 280)] },
+      { name: 'uni0D9B', unicode: 0x0D9B, advance: 600, contours: [sq(60, 0, 1000)] },
+      { name: 'uniF100', unicode: 0xF100, advance: 700, contours: [sq(60, 0, 100)] },
+    ],
+  });
+  const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  assert.equal(dv.getUint32(0), 0x00010000);                           // TrueType, not OTTO
+  const n = dv.getUint16(4), dir = {};
+  for (let i = 0; i < n; i++) { const o = 12 + i * 16; dir[String.fromCharCode(dv.getUint8(o), dv.getUint8(o + 1), dv.getUint8(o + 2), dv.getUint8(o + 3))] = { off: dv.getUint32(o + 8), len: dv.getUint32(o + 12), sum: dv.getUint32(o + 4) }; }
+  assert.deepEqual(Object.keys(dir), [...Object.keys(dir)].sort());   // sorted tags
+  for (const k of ['OS/2', 'cmap', 'glyf', 'head', 'hhea', 'hmtx', 'loca', 'maxp', 'name', 'post']) assert.ok(dir[k], k);
+  const sum = (from, len) => { let s = 0; for (let i = 0; i < len; i += 4) s = (s + (((bytes[from + i] << 24) | ((bytes[from + i + 1] || 0) << 16) | ((bytes[from + i + 2] || 0) << 8) | (bytes[from + i + 3] || 0)) >>> 0)) >>> 0; return s; };
+  for (const [k, e] of Object.entries(dir)) {
+    assert.equal(e.off % 4, 0, `${k} aligned`);
+    if (k !== 'head') assert.equal(sum(e.off, e.len), e.sum, `${k} checksum`);
+  }
+  assert.equal(sum(0, bytes.length), 0xB1B0AFBA);                      // whole-file checksum rule
+  assert.equal(dv.getUint32(dir.head.off + 12), 0x5F0F3CF5);
+  assert.equal(dv.getUint16(dir.maxp.off + 4), 5);                     // numGlyphs
+  // cmap format 4: map U+0D9A -> glyph 2, U+0D9B -> 3, U+F100 -> 4
+  const cm = dir.cmap.off + 12, segX2 = dv.getUint16(cm + 6), segs = segX2 / 2;
+  const lookup = (c) => { for (let i = 0; i < segs; i++) { const end = dv.getUint16(cm + 14 + i * 2), start = dv.getUint16(cm + 16 + segX2 + i * 2);
+    if (c >= start && c <= end) { const delta = dv.getUint16(cm + 16 + 2 * segX2 + i * 2); return (c + delta) & 0xffff; } } return 0; };
+  assert.equal(lookup(32), 1); assert.equal(lookup(0x0D9A), 2); assert.equal(lookup(0x0D9B), 3); assert.equal(lookup(0xF100), 4); assert.equal(lookup(0x41), 0);
+  // glyf round-trip for glyph 2 (two squares, one with negative y and a >255 delta jump)
+  const loca = (i) => dv.getUint16(dir.loca.off + i * 2) * 2, g0 = dir.glyf.off + loca(2);
+  assert.equal(dv.getInt16(g0), 2);                                    // 2 contours
+  assert.equal(dv.getInt16(g0 + 2), 60); assert.equal(dv.getInt16(g0 + 4), -20); assert.equal(dv.getInt16(g0 + 6), 580); assert.equal(dv.getInt16(g0 + 8), 380);
+  const ends = [dv.getUint16(g0 + 10), dv.getUint16(g0 + 12)]; assert.deepEqual(ends, [3, 7]);
+  let p = g0 + 14; const il = dv.getUint16(p); p += 2 + il;
+  const flags = []; while (flags.length < 8) { const f = dv.getUint8(p++); flags.push(f); if (f & 8) { let r = dv.getUint8(p++); while (r--) flags.push(f); } }
+  const xs = [], ys = []; let x = 0, y = 0;
+  for (const f of flags) { if (f & 2) { const d = dv.getUint8(p++); x += (f & 16) ? d : -d; } else if (!(f & 16)) { x += dv.getInt16(p); p += 2; } xs.push(x); }
+  for (const f of flags) { if (f & 4) { const d = dv.getUint8(p++); y += (f & 32) ? d : -d; } else if (!(f & 32)) { y += dv.getInt16(p); p += 2; } ys.push(y); }
+  assert.deepEqual(xs, [60, 60, 360, 360, 300, 300, 580, 580]); assert.deepEqual(ys, [-20, 280, 280, -20, 100, 380, 380, 100]);
+  assert.ok(flags[0] & 0x40);                                          // OVERLAP_SIMPLE on first point
+});
+t('ttfWriter: contour cleaning + names', () => {
+  assert.equal(cleanContour([{ x: 0, y: 0 }, { x: 0.2, y: 0.1 }, { x: 5, y: 0 }]), null);       // collapses to <3 points
+  assert.equal(cleanContour([{ x: 0, y: 0 }, { x: 10, y: 0 }, { x: 20, y: 0 }]), null);         // zero area
+  assert.equal(cleanContour([{ x: 0, y: 0 }, { x: 0, y: 10 }, { x: 10, y: 10 }, { x: 0, y: 0 }]).length, 3);
+  assert.ok(signedArea([{ x: 0, y: 0 }, { x: 0, y: 10 }, { x: 10, y: 10 }, { x: 10, y: 0 }]) < 0);   // clockwise in y-up
+  assert.equal(postScriptName('My Font ක!', 'Regular'), 'MyFont-Regular');
+  assert.ok(postScriptName('x'.repeat(100), 'Regular').length <= 63);
 });
 
 // ── Executor with a fake app API ───────────────────────────────────────────

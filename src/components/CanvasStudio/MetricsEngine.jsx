@@ -16,7 +16,7 @@ export default function MetricsEngine({
   fontName, setFontName,
   onPushCloud, onPullCloud,
   onExportJSON, onImportJSON,
-  onCompileSVG, onCompileTTF, onOpenHistory, onExportSpecimenPDF,
+  onCompileSVG, onCompileTTF, onCompileOTF, onOpenHistory, onExportSpecimenPDF,
   onLearnStyleProfile, styleProfile, savedLabel,
   selectedChar, glyphs, onExportAllPNGs,
   T,
@@ -135,6 +135,12 @@ export default function MetricsEngine({
           className={`w-full py-3.5 rounded-xl text-[10px] font-black flex items-center justify-center gap-2 uppercase tracking-wider shadow-md transition ${T.btn}`}>
           <FileType2 className="w-4 h-4" aria-hidden="true" /> Build &amp; Export TTF Font
         </button>
+        {onCompileOTF && (
+          <button onClick={onCompileOTF}
+            className={`w-full py-2.5 rounded-xl text-[10px] font-bold flex items-center justify-center gap-2 border transition ${T.accentBg}`}>
+            <FileType2 className="w-3.5 h-3.5" aria-hidden="true" /> Export OTF (OpenType)
+          </button>
+        )}
         <button onClick={onExportSpecimenPDF}
           className={`w-full py-2.5 rounded-xl text-[10px] font-bold flex items-center justify-center gap-2 border transition ${T.accentBg}`}>
           <FileText className="w-3.5 h-3.5" aria-hidden="true" /> Export Specimen Sheet (PDF)
@@ -148,7 +154,7 @@ export default function MetricsEngine({
           <Download className="w-3.5 h-3.5" aria-hidden="true" /> Export SVG Font (legacy)
         </button>
         <p className="text-[8px] opacity-60 text-center px-2">
-          TTF = real installable font. PDF = showcase sheet for clients. SVG = preview outline.
+          TTF = real TrueType font (works everywhere). OTF = OpenType (CFF) version. PDF = showcase sheet for clients. SVG = preview outline.
         </p>
       </div>
     </div>

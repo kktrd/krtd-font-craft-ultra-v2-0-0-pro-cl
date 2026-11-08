@@ -1,5 +1,5 @@
 /**
- * KRTD Font Compiler — Real OTF/TTF Engine v1.1
+ * KRTD Font Compiler — Real TTF (TrueType glyf) + OTF (CFF) Engine v2.0
  * Converts canvas centerline+width strokes into closed outline polygons,
  * then assembles a true installable TrueType font using opentype.js.
  *
@@ -13,7 +13,7 @@
  *   - compileFontDataURL() — base64 data: URL variant for live @font-face
  *     hot-reload preview (Part 3.1), reusing the exact same compiler core
  */
-import opentype from 'opentype.js';
+import { buildTrueTypeFont, cleanContour, postScriptName } from './ttfWriter.js';
 import { FEATURE_FLAGS } from './featureFlags.js';
 import { strokeToContours, normalizeWinding } from './strokeOutline.js';
 
@@ -23,24 +23,22 @@ const SCALE        = UNITS_PER_EM / CANVAS_SIZE; // 2
 const PUA_START    = 0xF100; // Private Use Area base for ligature/composite glyph keys
 
 /**
- * Builds an opentype.Path for a single glyph from all its strokes.
+ * Contours (font units, y-up, outer = clockwise) for one glyph from all its strokes.
  * Geometry lives in strokeOutline.js (smoothed centerline, round caps, union of convex pieces);
  * every contour is winding-normalized so the NONZERO fill rule unions them cleanly.
  */
-export function buildGlyphPath(strokes, baselineY) {
-  const path = new opentype.Path();
+export function buildGlyphContours(strokes, baselineY) {
+  const out = [];
   strokes.forEach((stroke) => {
     if (stroke[0]?.isEraser) return; // skip eraser-only strokes
     strokeToContours(stroke, baselineY, SCALE).forEach((contour) => {
       let poly = contour;
       if (poly.length < 3) return;
       if (FEATURE_FLAGS.ENABLE_WINDING_FIX) poly = normalizeWinding(poly, true);
-      path.moveTo(poly[0].x, poly[0].y);
-      for (let i = 1; i < poly.length; i++) path.lineTo(poly[i].x, poly[i].y);
-      path.close();
+      out.push(poly);
     });
   });
-  return path;
+  return out;
 }
 
 /**
@@ -68,71 +66,66 @@ function resolveGlyphCodepoint(char, puaCounterRef) {
   return { unicode: puaCode, isPUA: true };
 }
 
-/** Shift every x coordinate of a path (all command types) by dx. */
-function shiftPathX(path, dx) {
-  path.commands.forEach((c) => {
-    if (typeof c.x  === 'number') c.x  += dx;
-    if (typeof c.x1 === 'number') c.x1 += dx;
-    if (typeof c.x2 === 'number') c.x2 += dx;
-  });
-}
-
 const SIDE_BEARING = 60;   // font units on each side of the drawn shape
 const MIN_ADVANCE  = 260;  // narrowest allowed glyph advance
 const SPACE_ADVANCE = 300;
 
+
+/** .notdef: a hollow rectangle so missing characters are visible (outer clockwise, inner counter-clockwise). */
+function notdefContours() {
+  return [
+    [{ x: 50, y: 0 }, { x: 50, y: 700 }, { x: 450, y: 700 }, { x: 450, y: 0 }],
+    [{ x: 100, y: 50 }, { x: 400, y: 50 }, { x: 400, y: 650 }, { x: 100, y: 650 }],
+  ];
+}
+
+const FONT_NAMES = {
+  copyright:   'Created with KRTD Font Craft Ultra',
+  description: 'Custom Sinhala font designed in KRTD Font Craft Ultra',
+  version:     'Version 1.000',
+};
+
 /**
- * Compiles the full glyph set into an opentype.Font instance.
+ * Turns the drawn glyphs into a plain, format-neutral font model (integer outlines).
+ * Both the TrueType (.ttf) and the CFF (.otf) writers consume this, so they always match.
  */
-export function compileOpenTypeFont({ fontName, metrics, glyphs }) {
+export function buildFontModel({ fontName, metrics, glyphs }) {
   const baselineY = metrics.baseline;
   const ascender  = Math.round((metrics.baseline - metrics.ascender) * SCALE);
   const descender = -Math.round((metrics.descender - metrics.baseline) * SCALE);
 
-  const notdefGlyph = new opentype.Glyph({
-    name: '.notdef',
-    unicode: 0,
-    advanceWidth: Math.round(UNITS_PER_EM * 0.5),
-    path: new opentype.Path(),
-  });
-
-  const spaceGlyph = new opentype.Glyph({
-    name: 'space',
-    unicode: 32,
-    advanceWidth: SPACE_ADVANCE,
-    path: new opentype.Path(),
-  });
-  const glyphList = [notdefGlyph, spaceGlyph];
+  const list = [
+    { name: '.notdef', unicode: null, advance: Math.round(UNITS_PER_EM * 0.5), contours: notdefContours() },
+    { name: 'space', unicode: 32, advance: SPACE_ADVANCE, contours: [] },
+  ];
   const puaCounterRef = { count: 0 };
-  const puaMap = []; // [{ char, puaCodepoint }] — returned for UI disclosure
+  const puaMap = [];
+  const used = new Set([32]);
   let compiledCount = 0;
 
   Object.entries(glyphs).forEach(([char, strokes]) => {
     const realStrokes = strokes.filter(s => !s[0]?.isEraser);
     if (!realStrokes.length) return;
-    const path = buildGlyphPath(realStrokes, baselineY);
-    if (path.commands.length === 0) return;
+    let contours = buildGlyphContours(realStrokes, baselineY);
+    if (!contours.length) return;
 
     // Real-world spacing: left-align the drawn shape to a fixed side bearing and
-    // set the advance from the shape's actual width (instead of one fixed width
-    // for every glyph, which made wide glyphs overlap and narrow ones gappy).
-    const bb = path.getBoundingBox();
-    shiftPathX(path, SIDE_BEARING - bb.x1);
-    const advanceWidth = Math.max(MIN_ADVANCE, Math.round((bb.x2 - bb.x1) + SIDE_BEARING * 2));
+    // set the advance from the shape's actual width.
+    let minX = Infinity, maxX = -Infinity;
+    contours.forEach(c => c.forEach(p => { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); }));
+    const dx = SIDE_BEARING - minX;
+    contours = contours.map(c => cleanContour(c.map(p => ({ x: p.x + dx, y: p.y })))).filter(Boolean);
+    if (!contours.length) return;
+    const advance = Math.max(MIN_ADVANCE, Math.round((maxX - minX) + SIDE_BEARING * 2));
 
-    const { unicode, isPUA } = FEATURE_FLAGS.ENABLE_LIGATURE_SAFE_EXPORT
+    let { unicode, isPUA } = FEATURE_FLAGS.ENABLE_LIGATURE_SAFE_EXPORT
       ? resolveGlyphCodepoint(char, puaCounterRef)
       : { unicode: char.codePointAt(0), isPUA: false };
-
+    if (used.has(unicode) || unicode > 0xFFFF) return;   // duplicate / outside the BMP cmap: skip safely
+    used.add(unicode);
     if (isPUA) puaMap.push({ char, puaCodepoint: unicode });
 
-    const glyph = new opentype.Glyph({
-      name: `uni${unicode.toString(16).toUpperCase().padStart(4, '0')}`,
-      unicode,
-      advanceWidth,
-      path,
-    });
-    glyphList.push(glyph);
+    list.push({ name: `uni${unicode.toString(16).toUpperCase().padStart(4, '0')}`, unicode, advance, contours });
     compiledCount++;
   });
 
@@ -140,55 +133,95 @@ export function compileOpenTypeFont({ fontName, metrics, glyphs }) {
     throw new Error('No drawable glyphs found. Draw at least one character first.');
   }
 
-  const font = new opentype.Font({
-    familyName: fontName.replace(/[^a-zA-Z0-9-_]/g, '') || 'KRTDFont',
-    styleName:  'Regular',
-    unitsPerEm: UNITS_PER_EM,
-    ascender,
-    descender,
-    glyphs: glyphList,
-  });
+  const familyName = (fontName || '').replace(/[^a-zA-Z0-9-_]/g, '') || 'KRTDFont';
+  return {
+    model: {
+      familyName, styleName: 'Regular', unitsPerEm: UNITS_PER_EM, ascender, descender,
+      xHeight: Math.round((metrics.baseline - metrics.xHeight) * SCALE),
+      capHeight: Math.round((metrics.baseline - metrics.capHeight) * SCALE),
+      names: FONT_NAMES, glyphs: list,
+    },
+    compiledCount, puaMap,
+  };
+}
 
-  return { font, compiledCount, puaMap };
+/** True TrueType (glyf) font bytes — the real .ttf. */
+export function compileTrueTypeFont(args) {
+  const { model, compiledCount, puaMap } = buildFontModel(args);
+  return { bytes: buildTrueTypeFont(model), compiledCount, puaMap, model };
 }
 
 /**
- * Compiles and triggers a browser download of the .ttf file.
- * @returns {number} number of glyphs compiled
+ * CFF-flavoured OpenType (.otf) via opentype.js (lazy-loaded). CFF wants outer contours
+ * counter-clockwise, so outlines are reversed from the shared (TrueType) model.
  */
-export function downloadTTF(fontName, metrics, glyphs) {
-  const { font, compiledCount, puaMap } = compileOpenTypeFont({ fontName, metrics, glyphs });
-  const arrayBuffer = font.toArrayBuffer();
-  const blob = new Blob([arrayBuffer], { type: 'font/ttf' });
+export async function compileOpenTypeCFF(args) {
+  const { default: opentype } = await import('opentype.js');
+  const { model, compiledCount, puaMap } = buildFontModel(args);
+  const glyphList = model.glyphs.map((g) => {
+    const path = new opentype.Path();
+    g.contours.forEach((c) => {
+      const pts = [...c].reverse();
+      path.moveTo(pts[0].x, pts[0].y);
+      for (let i = 1; i < pts.length; i++) path.lineTo(pts[i].x, pts[i].y);
+      path.close();
+    });
+    return new opentype.Glyph({ name: g.name, unicode: g.unicode == null ? undefined : g.unicode, advanceWidth: g.advance, path });
+  });
+  const font = new opentype.Font({
+    familyName: model.familyName, styleName: model.styleName, unitsPerEm: model.unitsPerEm,
+    ascender: model.ascender, descender: model.descender, glyphs: glyphList,
+    copyright: model.names.copyright, description: model.names.description, version: model.names.version,
+    weightClass: 400, manufacturer: 'KRTD Font Craft Ultra',
+    postScriptName: postScriptName(model.familyName, model.styleName),
+  });
+  font.names.uniqueID = { en: `${model.familyName}-${model.styleName};${model.names.version.replace(/^Version\s*/i, '')}` };
+  return { bytes: new Uint8Array(font.toArrayBuffer()), compiledCount, puaMap, model };
+}
+
+function saveBytes(bytes, fileName, mime) {
+  const blob = new Blob([bytes], { type: mime });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = `${fontName}.ttf`;
+  a.download = fileName;
   document.body.appendChild(a);
   a.click();
   a.remove();
-  { const u = a.href; setTimeout(() => URL.revokeObjectURL(u), 1500); }
+  const u = a.href; setTimeout(() => URL.revokeObjectURL(u), 1500);
+}
 
+function logPua(puaMap) {
   if (puaMap.length > 0) {
     console.info(
       `[KRTD] ${puaMap.length} ligature glyph(s) exported to Private Use Area codepoints:`,
       puaMap.map(p => `${p.char} → U+${p.puaCodepoint.toString(16).toUpperCase()}`).join(', ')
     );
   }
+}
+
+/** Compiles a real TrueType font and downloads it as <name>.ttf. @returns {number} glyph count */
+export function downloadTTF(fontName, metrics, glyphs) {
+  const { bytes, compiledCount, puaMap } = compileTrueTypeFont({ fontName, metrics, glyphs });
+  saveBytes(bytes, `${fontName}.ttf`, 'font/ttf');
+  logPua(puaMap);
+  return compiledCount;
+}
+
+/** Compiles a CFF OpenType font and downloads it as <name>.otf. @returns {Promise<number>} glyph count */
+export async function downloadOTF(fontName, metrics, glyphs) {
+  const { bytes, compiledCount, puaMap } = await compileOpenTypeCFF({ fontName, metrics, glyphs });
+  saveBytes(bytes, `${fontName}.otf`, 'font/otf');
+  logPua(puaMap);
   return compiledCount;
 }
 
 /**
- * Part 3.1 — Compiles to a base64 `data:font/ttf;base64,...` URL instead of
- * triggering a download. Used by useLiveFontPreview to inject a live
- * @font-face rule for Canvas → Text Studio hot-reload preview.
+ * Compiles to a base64 `data:font/ttf;base64,...` URL (live @font-face hot-reload preview).
  * @returns {{ dataUrl: string, compiledCount: number }}
  */
 export function compileFontDataURL(fontName, metrics, glyphs) {
-  const { font, compiledCount } = compileOpenTypeFont({ fontName, metrics, glyphs });
-  const arrayBuffer = font.toArrayBuffer();
-  const bytes = new Uint8Array(arrayBuffer);
+  const { bytes, compiledCount } = compileTrueTypeFont({ fontName, metrics, glyphs });
   let binary = '';
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
-  const base64 = btoa(binary);
-  return { dataUrl: `data:font/ttf;base64,${base64}`, compiledCount };
+  for (let i = 0; i < bytes.length; i += 0x8000) binary += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  return { dataUrl: `data:font/ttf;base64,${btoa(binary)}`, compiledCount };
 }

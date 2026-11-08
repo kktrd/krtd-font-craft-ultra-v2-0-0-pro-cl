@@ -86,7 +86,17 @@ export function strokeToPolygons(stroke) {
     const a1 = Math.atan2(s[i].y - s[i - 1].y, s[i].x - s[i - 1].x);
     const a2 = Math.atan2(s[i + 1].y - s[i].y, s[i + 1].x - s[i].x);
     let d = Math.abs(a2 - a1); if (d > Math.PI) d = 2 * Math.PI - d;
-    if (d > JOINT_TURN) polys.push(circle(s[i].x, s[i].y, s[i].w / 2));
+    if (d > JOINT_TURN) { polys.push(circle(s[i].x, s[i].y, s[i].w / 2)); continue; }
+    if (d < 0.005) continue;                       // practically straight: quads already meet
+    // gentle turn: neighbouring quads leave a thin wedge on the outer side -> fill it
+    const la = Math.hypot(s[i].x - s[i - 1].x, s[i].y - s[i - 1].y), lb = Math.hypot(s[i + 1].x - s[i].x, s[i + 1].y - s[i].y);
+    if (la < 1e-6 || lb < 1e-6) continue;
+    const h = s[i].w / 2;
+    const nax = -(s[i].y - s[i - 1].y) / la, nay = (s[i].x - s[i - 1].x) / la;
+    const nbx = -(s[i + 1].y - s[i].y) / lb, nby = (s[i + 1].x - s[i].x) / lb;
+    const v = s[i];
+    polys.push([{ x: v.x, y: v.y }, { x: v.x + nax * h, y: v.y + nay * h }, { x: v.x + nbx * h, y: v.y + nby * h }]);
+    polys.push([{ x: v.x, y: v.y }, { x: v.x - nax * h, y: v.y - nay * h }, { x: v.x - nbx * h, y: v.y - nby * h }]);
   }
   return polys;
 }

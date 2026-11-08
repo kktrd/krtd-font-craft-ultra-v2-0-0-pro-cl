@@ -438,3 +438,14 @@ Open with the 🤖 button (bottom-right) or **Alt+A**.
 
 **Database (existing project)** — run `supabase/migration-v4.5-owner-keys.sql` in two steps: STEP 1 now, deploy, STEP 2 after. A fresh database just runs `fontcraft-db-schema.sql` (already updated). Both were executed and checked on a real PostgreSQL 16 with Supabase-style roles/`auth.uid()`: same-name guests/users coexist, nobody can write/delete another owner's row, legacy `guest` rows are read-only, admin vs super-admin rights, history inserts follow the owner, re-runs are idempotent.
 - Known limit: guest device ids are not secret (anyone holding the public anon key can still read guest rows, as before). Real privacy for guests needs Supabase anonymous sign-ins.
+
+## v4.6.0 — Real TrueType export (+ OTF), curated font tables
+**Found by actually inspecting the output with fontTools / FreeType / Chromium:**
+- The "TTF" was really a **CFF OpenType (OTTO)** font with a `.ttf` name. Now `.ttf` is a genuine **TrueType (`glyf`)** font built by our own writer (`src/utils/ttfWriter.js`, no dependencies); `.otf` (CFF via opentype.js, lazy-loaded) is a separate export.
+- Gentle curves left hair-thin **wedge gaps** between neighbouring segment quads (156 uncovered edge samples on a test ring) — now filled (0 gaps; regression test).
+- Font metadata was poor (weight 500, junk unique ID `" :Name"`, empty names, OS/2 v3, no Unicode ranges, no gasp). Now: OS/2 v4 (weight 400, Sinhala/Latin/PUA ranges, typo + win metrics from real bounds so nothing is clipped, USE_TYPO_METRICS), proper name table (Windows + Mac), PostScript name, `gasp`, `post` 3.0, correct hhea/maxp/head.
+- `.notdef` is now a visible box; duplicate / non-BMP codepoints are skipped safely.
+- Live preview (Text Studio) uses the same TrueType build.
+
+**Verified**: both fonts load with fontTools; render identically in Chromium (its OTS web-font sanitizer accepted both); TrueType contours are all clockwise; structure/checksum/cmap/glyf round-trip are unit-tested (36 test groups).
+- Known limits: no GSUB (ligature glyphs live on Private-Use codepoints), no hinting (gasp requests smooth grey scaling), outlines are many overlapping convex pieces (correct under the non-zero rule, a little larger than a merged outline).
