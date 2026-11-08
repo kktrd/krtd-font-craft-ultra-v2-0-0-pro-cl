@@ -421,3 +421,8 @@ Open with the 🤖 button (bottom-right) or **Alt+A**.
 - Font check: if the chosen guide style's web font did not load, the panel says so (falls back to another font).
 - Fonts confirmed with Sinhala support: Noto Sans/Serif Sinhala, Abhaya Libre, Yaldevi, Gemunu Libre.
 - Combining signs (ං ා ි …) no longer get numbered pieces.
+
+## v4.4.2
+- Shape Guide: **Front layer** option (keeps the guide visible over the strokes, e.g. after using the eraser).
+- Shortcut list + in-app Help now mention Shape Guide (H).
+- `vite.config.js`: `esbuild.drop` moved to the valid top-level option.

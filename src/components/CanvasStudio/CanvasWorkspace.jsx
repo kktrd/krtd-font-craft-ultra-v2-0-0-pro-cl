@@ -603,7 +603,7 @@ export default function CanvasWorkspace({
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 font-mono">
             {[['Ctrl+Z','Undo'],['Ctrl+Y','Redo'],['E','Eraser'],['B','Brush'],
               ['M','Metrics'],['S','Snap'],['R','Ruler'],['X','Mirror'],
-              ['G','Reference'],['P','Predict'],['[ ]','Size ±'],['1-4','Zoom']].map(([k,v])=>(
+              ['G','Reference'],['H','Shape Guide'],['P','Predict'],['[ ]','Size ±'],['1-4','Zoom']].map(([k,v])=>(
               <div key={k} className="flex items-center gap-2">
                 <kbd className={`px-1.5 py-0.5 rounded border text-[9px] font-black ${T.card}`}>{k}</kbd>
                 <span className="opacity-50">{v}</span>
@@ -756,7 +756,7 @@ export default function CanvasWorkspace({
           <canvas
             ref={guideCanvasRef} width={CS} height={CS}
             aria-hidden="true"
-            style={{ position:'absolute', top:0, left:0, width:`${displaySize}px`, height:`${displaySize}px`, pointerEvents:'none' }}
+            style={{ position:'absolute', zIndex: guideSet.front ? 2 : 0, top:0, left:0, width:`${displaySize}px`, height:`${displaySize}px`, pointerEvents:'none' }}
           />
           <canvas
             ref={canvasRef} width={CS} height={CS}
@@ -770,7 +770,7 @@ export default function CanvasWorkspace({
           <canvas
             ref={predictCanvasRef} width={CS} height={CS}
             aria-hidden="true"
-            style={{ position:'absolute', zIndex:2, top:0, left:0, width:`${displaySize}px`, height:`${displaySize}px`, pointerEvents:'none' }}
+            style={{ position:'absolute', zIndex:3, top:0, left:0, width:`${displaySize}px`, height:`${displaySize}px`, pointerEvents:'none' }}
           />
         </div>
       </div>

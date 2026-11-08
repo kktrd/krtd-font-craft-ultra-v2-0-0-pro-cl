@@ -66,7 +66,7 @@ export default function ShapeGuidePanel({
       </div>
 
       <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Guide options">
-        {tog('snap', 'Metrics snap')}{tog('order', '1·2·3 order')}{tog('meter', 'Accuracy')}{tog('compare', 'Compare')}{tog('dashed', 'Dashed')}
+        {tog('snap', 'Metrics snap')}{tog('order', '1·2·3 order')}{tog('meter', 'Accuracy')}{tog('compare', 'Compare')}{tog('dashed', 'Dashed')}{tog('front', 'Front layer')}
       </div>
 
       {settings.meter && (

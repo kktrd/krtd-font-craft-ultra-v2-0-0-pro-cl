@@ -39,7 +39,7 @@ const clamp = (v, k) => Math.min(GUIDE_LIMITS[k].max, Math.max(GUIDE_LIMITS[k].m
 const bool = (v, d) => (typeof v === 'boolean' ? v : d);
 
 export function defaultSettings() {
-  return { style: 'sans', snap: false, dashed: true, order: false, meter: true, compare: false,
+  return { style: 'sans', snap: false, dashed: true, order: false, meter: true, compare: false, front: false,
            weight: 2, opacity: 0.6, gscale: 1, gdy: 0 };
 }
 export function defaultAdj() { return { scale: 1, dx: 0, dy: 0, rot: 0 }; }
@@ -49,7 +49,7 @@ export function clampSettings(s) {
   const d = defaultSettings(), src = s && typeof s === 'object' ? s : {};
   return {
     style: STYLE_IDS.includes(src.style) ? src.style : d.style,
-    snap: bool(src.snap, d.snap), dashed: bool(src.dashed, d.dashed), order: bool(src.order, d.order),
+    snap: bool(src.snap, d.snap), dashed: bool(src.dashed, d.dashed), order: bool(src.order, d.order), front: bool(src.front, d.front),
     meter: bool(src.meter, d.meter), compare: bool(src.compare, d.compare),
     weight: clamp(num(src.weight, d.weight), 'weight'), opacity: clamp(num(src.opacity, d.opacity), 'opacity'),
     gscale: clamp(num(src.gscale, d.gscale), 'gscale'), gdy: clamp(num(src.gdy, d.gdy), 'gdy'),
