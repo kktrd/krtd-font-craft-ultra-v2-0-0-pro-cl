@@ -16,6 +16,7 @@ import handler from '../api/agent.js';
 import { configuredProviders } from '../api/_providers.js';
 import { strokeToContours, strokeToPolygons, normalizeWinding, centerlineSamples } from '../src/utils/strokeOutline.js';
 import * as G from '../src/utils/guideMath.js';
+import { getGuestOwner, ownerIdFor, isGuestOwner } from '../src/utils/ownerId.js';
 import { DEFAULT_METRICS } from '../src/utils/glyphData.js';
 
 let n = 0;
@@ -206,6 +207,20 @@ t('guideMath: style match ratio / shift', () => {
   assert.equal(G.matchRatio([]), null);
   assert.deepEqual(G.strokesBox([[{ x: 1, y: 2 }, { x: 5, y: 9 }]]), { minx: 1, maxx: 5, miny: 2, maxy: 9 });
   assert.equal(G.strokesBox([]), null);
+});
+
+t('ownerId: stable per-device guest id, auth id wins, blocked storage still works', () => {
+  const store = new Map();
+  globalThis.localStorage = { getItem: (k) => (store.has(k) ? store.get(k) : null), setItem: (k, v) => store.set(k, String(v)) };
+  const g1 = getGuestOwner(), g2 = getGuestOwner();
+  assert.equal(g1, g2); assert.ok(isGuestOwner(g1) && g1.length >= 34);   // matches the SQL rule length(user_id) >= 34
+  store.set('krtd_guest_key', 'junk'); assert.notEqual(getGuestOwner(), 'junk');      // corrupted value is replaced
+  assert.equal(ownerIdFor({ id: 'abc-uuid' }), 'abc-uuid');
+  assert.ok(isGuestOwner(ownerIdFor(null)));
+  assert.equal(isGuestOwner('guest'), false); assert.equal(isGuestOwner('g:1'), false);
+  globalThis.localStorage = { getItem() { throw new Error('blocked'); }, setItem() { throw new Error('blocked'); } };
+  const m1 = getGuestOwner(); assert.equal(m1, getGuestOwner()); assert.ok(isGuestOwner(m1));
+  delete globalThis.localStorage;
 });
 
 // ── Executor with a fake app API ───────────────────────────────────────────

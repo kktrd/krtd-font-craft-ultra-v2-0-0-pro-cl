@@ -5,7 +5,7 @@ import { useState, useCallback } from 'react';
  * Works alongside the existing localStorage + cloud-sync layers; this is a
  * separate append-only log so past states are never silently overwritten.
  */
-export function useVersionHistory(supabase, fontName) {
+export function useVersionHistory(supabase, fontName, ownerId) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(false);
 
@@ -13,11 +13,13 @@ export function useVersionHistory(supabase, fontName) {
     if (!supabase || !fontName || !char) { setHistory([]); return; }
     setLoading(true);
     try {
-      const { data, error } = await supabase
+      let q = supabase
         .from('glyph_history')
         .select('id, strokes, stroke_count, label, user_id, created_at')
         .eq('font_name', fontName)
-        .eq('glyph_char', char)
+        .eq('glyph_char', char);
+      if (ownerId) q = q.in('user_id', [ownerId, 'guest']);   // my snapshots (+ old shared-guest ones)
+      const { data, error } = await q
         .order('created_at', { ascending: false })
         .limit(20);
       if (!error && data) setHistory(data);
@@ -27,7 +29,7 @@ export function useVersionHistory(supabase, fontName) {
     } finally {
       setLoading(false);
     }
-  }, [supabase, fontName]);
+  }, [supabase, fontName, ownerId]);
 
   const saveSnapshot = useCallback(async (char, strokes, userId, label = null) => {
     if (!supabase || !fontName || !char || !strokes?.length) return false;
@@ -38,13 +40,13 @@ export function useVersionHistory(supabase, fontName) {
         strokes,
         stroke_count: strokes.length,
         label,
-        user_id:      userId || 'guest',
+        user_id:      userId || ownerId,
       });
       return !error;
     } catch {
       return false;
     }
-  }, [supabase, fontName]);
+  }, [supabase, fontName, ownerId]);
 
   return { history, loading, loadHistory, saveSnapshot };
 }

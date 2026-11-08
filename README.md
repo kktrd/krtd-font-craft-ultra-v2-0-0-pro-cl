@@ -426,3 +426,15 @@ Open with the 🤖 button (bottom-right) or **Alt+A**.
 - Shape Guide: **Front layer** option (keeps the guide visible over the strokes, e.g. after using the eraser).
 - Shortcut list + in-app Help now mention Shape Guide (H).
 - `vite.config.js`: `esbuild.drop` moved to the valid top-level option.
+
+## v4.5.0 — Per-owner cloud projects (guest collision fix) + safer RLS
+**Problem**: `font_name` was UNIQUE across the whole table and every guest shared owner id `'guest'`, so users/guests with the same font name overwrote each other; admins could not see other users' projects; `user_roles` policies recursed into themselves (`infinite recursion detected in policy`).
+
+**Now**
+- Projects are keyed by **(owner, font name)**. Signed-in owner = auth UUID; guest owner = `g:<random uuid>` created once per device (`src/utils/ownerId.js`).
+- Pull falls back to the old shared `guest` copy (read-only) so nothing is lost; the next Push saves a copy under the new owner id.
+- Upsert falls back to the old key if the SQL has not been run yet (error 42P10), so the app never breaks mid-migration.
+- Admin dashboard can read all projects (admin) and delete/flag (super admin only).
+
+**Database (existing project)** — run `supabase/migration-v4.5-owner-keys.sql` in two steps: STEP 1 now, deploy, STEP 2 after. A fresh database just runs `fontcraft-db-schema.sql` (already updated). Both were executed and checked on a real PostgreSQL 16 with Supabase-style roles/`auth.uid()`: same-name guests/users coexist, nobody can write/delete another owner's row, legacy `guest` rows are read-only, admin vs super-admin rights, history inserts follow the owner, re-runs are idempotent.
+- Known limit: guest device ids are not secret (anyone holding the public anon key can still read guest rows, as before). Real privacy for guests needs Supabase anonymous sign-ins.

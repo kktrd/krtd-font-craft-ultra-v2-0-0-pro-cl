@@ -27,6 +27,7 @@ import { useVersionHistory }  from './hooks/useVersionHistory.js';
 
 import Header               from './components/Shared/Header.jsx';
 import Footer               from './components/Shared/Footer.jsx';
+import { ownerIdFor } from './utils/ownerId.js';
 import ErrorBoundary        from './components/Shared/ErrorBoundary.jsx';
 import CollabPresence       from './components/Shared/CollabPresence.jsx';
 import SkipLink             from './components/Shared/SkipLink.jsx';
@@ -132,7 +133,7 @@ function AppInner() {
 
   // ── Version history ──────────────────────────────────────────────────────
   const { history, loading: historyLoading, loadHistory, saveSnapshot } =
-    useVersionHistory(supabase, fontName);
+    useVersionHistory(supabase, fontName, ownerIdFor(authUser));
 
   // Auto-snapshot: 8s after a real change settles, log a version (cloud only)
   const snapshotTimerRef = useRef(null);
@@ -142,7 +143,7 @@ function AppInner() {
     if (!strokes?.length) return;
     clearTimeout(snapshotTimerRef.current);
     snapshotTimerRef.current = setTimeout(() => {
-      saveSnapshot(selectedChar, strokes, authUser?.id, null);
+      saveSnapshot(selectedChar, strokes, ownerIdFor(authUser), null);
     }, 8000);
     return () => clearTimeout(snapshotTimerRef.current);
   }, [glyphs, selectedChar, isOnline, supabase, authUser, saveSnapshot]);
@@ -243,12 +244,12 @@ function AppInner() {
   const syncToCloud = async (showAlert = true) => {
     if (!supabase) return;
     try {
-      const { error } = await supabase.from('font_projects').upsert({
-        font_name:   fontName,
-        user_id:     authUser?.id || 'guest',
-        metrics, glyphs,
-        updated_at:  new Date(),
-      }, { onConflict: 'font_name' });
+      const row = { font_name: fontName, user_id: ownerIdFor(authUser), metrics, glyphs, updated_at: new Date() };
+      let { error } = await supabase.from('font_projects').upsert(row, { onConflict: 'user_id,font_name' });
+      // 42P10 = the v4.5 SQL (owner+name unique key) has not been run yet -> old single-key upsert
+      if (error && error.code === '42P10') {
+        ({ error } = await supabase.from('font_projects').upsert(row, { onConflict: 'font_name' }));
+      }
       if (error) throw error;
       try { localStorage.removeItem('krtd_cloud_pending'); } catch { /* ignore */ }
       markSaved();
@@ -266,15 +267,20 @@ function AppInner() {
     if (!supabase) { toast('⚠️ Cloud configure කරලා නෑ.', 'error'); return; }
     setCloudLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('font_projects').select('*').eq('font_name', fontName).single();
-      if (error) {
-        if (error.code === 'PGRST116') toast(`🔍 "${fontName}" cloud හි නෑ.`, 'info');
-        else throw error;
-      } else if (data) {
+      const owner = ownerIdFor(authUser);
+      let { data, error } = await supabase
+        .from('font_projects').select('*').eq('font_name', fontName).eq('user_id', owner).maybeSingle();
+      if (error) throw error;
+      let legacy = false;
+      if (!data) {  // projects saved before v4.5 live under the shared 'guest' owner (read-only now)
+        const old = await supabase.from('font_projects').select('*').eq('font_name', fontName).eq('user_id', 'guest').maybeSingle();
+        if (!old.error && old.data) { data = old.data; legacy = true; }
+      }
+      if (!data) { toast(`🔍 "${fontName}" cloud හි නෑ.`, 'info'); }
+      else {
         if (data.metrics) setMetrics(data.metrics);
         if (data.glyphs)  setGlyphs(data.glyphs);
-        toast(`✨ "${fontName}" sync වුනා!`, 'success');
+        toast(legacy ? `✨ "${fontName}" (පරණ guest copy) load වුනා — Push කළාම ඔයාගේ අලුත් copy එකක් විදියට save වෙයි.` : `✨ "${fontName}" sync වුනා!`, 'success');
       }
     } catch (err) { toast(`❌ Pull error: ${err.message}`, 'error'); }
     finally { setCloudLoading(false); }
@@ -424,7 +430,7 @@ function AppInner() {
     // auto-sync effect leaves a narrow race window (e.g. saving a checkpoint
     // immediately after reconnecting from offline).
     await syncToCloud(false);
-    const ok = await saveSnapshot(selectedChar, strokes, authUser?.id, label);
+    const ok = await saveSnapshot(selectedChar, strokes, ownerIdFor(authUser), label);
     if (ok) { toast('📸 Checkpoint saved!', 'success'); loadHistory(selectedChar); }
     else toast('❌ Save failed — cloud connection check කරන්න.', 'error');
   };
