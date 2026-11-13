@@ -12,6 +12,8 @@
  * Output: Uint8Array of the .ttf file.
  */
 
+import { resolveLigatures, buildGSUB } from './gsubWriter.js';
+
 const u16 = (v) => [(v >> 8) & 255, v & 255];
 const i16 = (v) => u16(v & 0xffff);
 const u32 = (v) => [(v >>> 24) & 255, (v >>> 16) & 255, (v >>> 8) & 255, v & 255];
@@ -247,6 +249,8 @@ export function buildTrueTypeFont(model) {
     'OS/2': os2.a, cmap: buildCmap(glyphs), gasp: gasp.a, glyf: glyf.a, head: head.a, hhea: hhea.a, hmtx: hmtx.a,
     loca: loca.a, maxp: maxp.a, name: nameTable, post: post.a,
   };
+  const gsub = buildGSUB(resolveLigatures(glyphs));
+  if (gsub) tables.GSUB = Array.from(gsub);
   const tags = Object.keys(tables).sort();
   const numTables = tags.length;
   const sr = 16 * 2 ** Math.floor(Math.log2(numTables));

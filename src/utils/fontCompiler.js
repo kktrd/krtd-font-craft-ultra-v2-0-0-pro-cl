@@ -14,6 +14,7 @@
  *     hot-reload preview (Part 3.1), reusing the exact same compiler core
  */
 import { buildTrueTypeFont, cleanContour, postScriptName } from './ttfWriter.js';
+import { resolveLigatures, buildGSUB, injectTable } from './gsubWriter.js';
 import { FEATURE_FLAGS } from './featureFlags.js';
 import { strokeToContours, normalizeWinding } from './strokeOutline.js';
 
@@ -50,11 +51,9 @@ export function buildGlyphContours(strokes, baselineY) {
  * multi-codepoint keys get a stable Private-Use-Area codepoint so they
  * never clobber another glyph's cmap entry.
  *
- * Known limitation (documented, not hidden): without true OpenType GSUB
- * shaping, these ligature glyphs are reachable via their PUA codepoint
- * but won't auto-substitute when the user types the original multi-char
- * Unicode sequence in third-party software. Use the PUA char directly,
- * or copy it from this app's Atlas/Text Studio output.
+ * Typing the original Unicode sequence (with or without ZWJ) in apps that use OpenType
+ * shaping substitutes the drawn ligature automatically via the GSUB table (gsubWriter.js).
+ * This only fires when every component character (e.g. ක, ්, ෂ) is also drawn in the font.
  */
 function resolveGlyphCodepoint(char, puaCounterRef) {
   const codepoints = Array.from(char); // grapheme-safe iteration
@@ -125,9 +124,15 @@ export function buildFontModel({ fontName, metrics, glyphs }) {
     used.add(unicode);
     if (isPUA) puaMap.push({ char, puaCodepoint: unicode });
 
-    list.push({ name: `uni${unicode.toString(16).toUpperCase().padStart(4, '0')}`, unicode, advance, contours });
+    const seqCps = Array.from(char).map((c) => c.codePointAt(0));
+    list.push({ name: `uni${unicode.toString(16).toUpperCase().padStart(4, '0')}`, unicode, advance, contours, ...(isPUA ? { sequence: seqCps } : {}) });
     compiledCount++;
   });
+
+  // Zero-width joiner glyph so sequences that contain U+200D can match a ligature.
+  if (list.some((g) => g.sequence) && !used.has(0x200d)) {
+    list.push({ name: 'uni200D', unicode: 0x200d, advance: 0, contours: [] });
+  }
 
   if (compiledCount === 0) {
     throw new Error('No drawable glyphs found. Draw at least one character first.');
@@ -176,7 +181,10 @@ export async function compileOpenTypeCFF(args) {
     postScriptName: postScriptName(model.familyName, model.styleName),
   });
   font.names.uniqueID = { en: `${model.familyName}-${model.styleName};${model.names.version.replace(/^Version\s*/i, '')}` };
-  return { bytes: new Uint8Array(font.toArrayBuffer()), compiledCount, puaMap, model };
+  let bytes = new Uint8Array(font.toArrayBuffer());
+  const gsub = buildGSUB(resolveLigatures(model.glyphs));
+  if (gsub) bytes = injectTable(bytes, 'GSUB', gsub);
+  return { bytes, compiledCount, puaMap, model };
 }
 
 function saveBytes(bytes, fileName, mime) {

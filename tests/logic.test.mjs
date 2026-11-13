@@ -17,6 +17,7 @@ import { configuredProviders } from '../api/_providers.js';
 import { strokeToContours, strokeToPolygons, normalizeWinding, centerlineSamples } from '../src/utils/strokeOutline.js';
 import * as G from '../src/utils/guideMath.js';
 import * as BP from '../src/utils/brushPresets.js';
+import { resolveLigatures, buildGSUB, injectTable, sequenceVariants } from '../src/utils/gsubWriter.js';
 import { buildTrueTypeFont, signedArea, cleanContour, postScriptName } from '../src/utils/ttfWriter.js';
 import { getGuestOwner, ownerIdFor, isGuestOwner } from '../src/utils/ownerId.js';
 import { DEFAULT_METRICS } from '../src/utils/glyphData.js';
@@ -455,6 +456,47 @@ t('brushPresets: presets valid, matching, safe custom palette, preview polygons'
   assert.ok(Math.abs(thick(up, 0) - thick(up, 10)) < 1e-9);
   for (const [x, y] of BP.previewPolygonPoints('uniform', 48)) assert.ok(x >= 0 && x <= 60 && y >= 0 && y <= 24);
   assert.ok(typeof BP.previewPolygon('calligraphy', 14) === 'string');
+});
+t('gsubWriter: ligature resolution, GSUB structure, table injection keeps checksums valid', () => {
+  const g = [
+    { name: '.notdef', unicode: null, advance: 500, contours: [] },
+    { name: 'k', unicode: 0x0D9A, advance: 500, contours: [] },
+    { name: 'vir', unicode: 0x0DCA, advance: 300, contours: [] },
+    { name: 'ss', unicode: 0x0DC2, advance: 500, contours: [] },
+    { name: 'zwj', unicode: 0x200D, advance: 0, contours: [] },
+    { name: 'lig', unicode: 0xF100, advance: 800, contours: [], sequence: [0x0D9A, 0x0DCA, 0x0DC2] },
+    { name: 'orphan', unicode: 0xF101, advance: 800, contours: [], sequence: [0x0D9A, 0x0DCA, 0x0DC5] },
+  ];
+  assert.deepEqual(sequenceVariants([0x0D9A, 0x0DCA, 0x0DC2]), [[0x0D9A, 0x0DCA, 0x0DC2], [0x0D9A, 0x0DCA, 0x200D, 0x0DC2]]);
+  const r = resolveLigatures(g);
+  assert.equal(r.length, 2);                                   // plain + ZWJ variant; orphan (missing component) skipped
+  assert.deepEqual(r[0], { components: [1, 2, 3], glyph: 5 });
+  assert.deepEqual(r[1], { components: [1, 2, 4, 3], glyph: 5 });
+  assert.equal(buildGSUB([]), null);
+  const gs = buildGSUB(r);
+  const dv = new DataView(gs.buffer, gs.byteOffset, gs.byteLength);
+  assert.equal(dv.getUint16(0), 1); assert.equal(dv.getUint16(2), 0);
+  const lookupOff = dv.getUint16(8);
+  assert.equal(dv.getUint16(lookupOff), 1);                    // one lookup
+  const lk = lookupOff + dv.getUint16(lookupOff + 2);
+  assert.equal(dv.getUint16(lk), 4);                           // LigatureSubst
+  for (const off of [dv.getUint16(4), dv.getUint16(6), dv.getUint16(8)]) assert.ok(off < gs.length);
+  // inject into a real font and verify directory checksums + head adjustment
+  const sq = [{ x: 0, y: 0 }, { x: 0, y: 100 }, { x: 100, y: 100 }, { x: 100, y: 0 }];
+  const base = buildTrueTypeFont({ familyName: 'T', styleName: 'Regular', unitsPerEm: 1000, ascender: 800, descender: -200,
+    names: { version: 'Version 1.000' }, glyphs: [{ name: '.notdef', unicode: null, advance: 500, contours: [sq] }, { name: 'a', unicode: 97, advance: 500, contours: [sq] }] });
+  const out = injectTable(base, 'GSUB', gs);
+  const odv = new DataView(out.buffer, out.byteOffset, out.byteLength);
+  const n = odv.getUint16(4); let found = false;
+  const sum = (from, len) => { let s2 = 0; for (let i = 0; i < len; i += 4) s2 = (s2 + (((out[from + i] << 24) | ((out[from + i + 1] || 0) << 16) | ((out[from + i + 2] || 0) << 8) | (out[from + i + 3] || 0)) >>> 0)) >>> 0; return s2; };
+  for (let i = 0; i < n; i++) {
+    const o = 12 + i * 16, tg = String.fromCharCode(out[o], out[o + 1], out[o + 2], out[o + 3]);
+    const off = odv.getUint32(o + 8), len = odv.getUint32(o + 12);
+    if (tg === 'GSUB') { found = true; assert.equal(len, gs.length); }
+    if (tg !== 'head') assert.equal(sum(off, len), odv.getUint32(o + 4), tg);
+  }
+  assert.ok(found);
+  assert.equal(sum(0, out.length), 0xb1b0afba);                 // whole-file checksum rule
 });
 for (const [name, fn] of asyncT) { try { await fn(); n++; console.log('ok  ' + name); } finally { globalThis.fetch = realFetch; } }
 

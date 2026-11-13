@@ -457,3 +457,10 @@ Open with the 🤖 button (bottom-right) or **Alt+A**.
 - Each swatch shows a live preview of the stroke shape; the active preset is highlighted automatically when mode + size match.
 - **MY BRUSHES**: save the current brush (max 8), remove with ✕. Stored in `localStorage` (`krtd_brush_palette_v1`), validated on load.
 - Logic lives in `src/utils/brushPresets.js` (pure, covered by tests); UI in `BrushPalette.jsx`.
+
+## v4.8.0 — OpenType ligatures (GSUB) in exported fonts
+
+- Ligature glyphs (ක්ෂ, ශ්‍රී …) now work when you simply **type** the Unicode sequence in apps that use OpenType shaping (Word, Canva, browsers, Figma …). Before, they were reachable only through a Private-Use codepoint.
+- `src/utils/gsubWriter.js` writes a `GSUB` table (LigatureSubst, features `ccmp` + `liga`, scripts `DFLT` + `sinh`) and works for both TTF and OTF. Sequences are registered with and without ZWJ after the virama.
+- A ligature is only emitted if every component character is also drawn in the font (e.g. ක, ්, ෂ for ක්ෂ). A zero-width ZWJ glyph is added automatically.
+- Verified with fontTools (GSUB parse) and Chromium/HarfBuzz shaping (typed sequence renders the same width as the ligature glyph; without GSUB it does not). Pili positioning / GPOS mark placement are still not implemented.
