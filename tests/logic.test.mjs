@@ -16,6 +16,7 @@ import handler from '../api/agent.js';
 import { configuredProviders } from '../api/_providers.js';
 import { strokeToContours, strokeToPolygons, normalizeWinding, centerlineSamples } from '../src/utils/strokeOutline.js';
 import * as G from '../src/utils/guideMath.js';
+import * as BP from '../src/utils/brushPresets.js';
 import { buildTrueTypeFont, signedArea, cleanContour, postScriptName } from '../src/utils/ttfWriter.js';
 import { getGuestOwner, ownerIdFor, isGuestOwner } from '../src/utils/ownerId.js';
 import { DEFAULT_METRICS } from '../src/utils/glyphData.js';
@@ -419,6 +420,41 @@ ta('api/agent: ping hides provider names from non-admins, shows them to admins',
   assert.equal('providers' in r.body, false); assert.equal(modelCalls, 0);
   r = mkRes(); await handler(req(), r);
   assert.equal(r.code, 502); assert.equal(r.body.error, 'llm_http_429');
+});
+t('brushPresets: presets valid, matching, safe custom palette, preview polygons', () => {
+  const ids = new Set(), combos = new Set();
+  for (const p of BP.BRUSH_PRESETS) {
+    assert.ok(BP.BRUSH_MODES.includes(p.mode));
+    assert.ok(p.width >= BP.WIDTH_MIN && p.width <= BP.WIDTH_MAX);
+    assert.ok(!ids.has(p.id)); ids.add(p.id);
+    const k = p.mode + ':' + p.width; assert.ok(!combos.has(k)); combos.add(k);
+  }
+  assert.equal(BP.matchPreset('tapered', 16).id, 'ink-brush');
+  assert.equal(BP.matchPreset('tapered', 17), null);
+  const c = BP.sanitizeCustom([
+    { mode: 'uniform', width: 999, label: '<b>x</b>' }, { mode: 'uniform', width: 48 },
+    { mode: 'bogus', width: 10 }, null, { mode: 'tapered', width: 'abc' }, { mode: 'tapered', width: 3.4 },
+  ]);
+  assert.equal(c.length, 2);
+  assert.equal(c[0].width, 48); assert.ok(!/[<>]/.test(c[0].label)); assert.equal(c[1].width, 3);
+  assert.equal(BP.sanitizeCustom('x').length, 0);
+  const many = Array.from({ length: 30 }, (_, i) => ({ mode: 'uniform', width: 2 + i }));
+  assert.equal(BP.sanitizeCustom(many).length, BP.MAX_CUSTOM);
+  let l = BP.addCustom([], 'uniform', 7, 'mine');
+  assert.equal(l.length, 1);
+  assert.equal(BP.addCustom(l, 'uniform', 7).length, 1);
+  assert.equal(BP.addCustom(l, 'tapered', 16).length, 1);
+  assert.equal(BP.removeCustom(l, l[0].id).length, 0);
+  const mid = (pts) => { const n = (pts.length / 2) - 1; return pts[Math.round(n / 2)]; };
+  const thick = (pts, i) => { const n = pts.length / 2; return pts[pts.length - 1 - i][1] - pts[i][1]; };
+  const tp = BP.previewPolygonPoints('tapered', 20);
+  const half = tp.length / 2;
+  assert.ok(tp.every(([x, y]) => Number.isFinite(x) && Number.isFinite(y)));
+  assert.ok(thick(tp, 0) < 0.35 * thick(tp, Math.floor(half / 2)));
+  const up = BP.previewPolygonPoints('uniform', 12);
+  assert.ok(Math.abs(thick(up, 0) - thick(up, 10)) < 1e-9);
+  for (const [x, y] of BP.previewPolygonPoints('uniform', 48)) assert.ok(x >= 0 && x <= 60 && y >= 0 && y <= 24);
+  assert.ok(typeof BP.previewPolygon('calligraphy', 14) === 'string');
 });
 for (const [name, fn] of asyncT) { try { await fn(); n++; console.log('ok  ' + name); } finally { globalThis.fetch = realFetch; } }
 

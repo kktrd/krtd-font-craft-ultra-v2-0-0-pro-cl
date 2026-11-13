@@ -13,11 +13,18 @@ import {
 } from '../../utils/shapeGuide.js';
 import ShapeGuidePanel from './ShapeGuidePanel.jsx';
 import ShapeCompare from './ShapeCompare.jsx';
+import BrushPalette from './BrushPalette.jsx';
+import { CUSTOM_KEY, sanitizeCustom } from '../../utils/brushPresets.js';
 
 const GUIDE_KEY = 'krtd_shape_guide_v1';
 const loadGuidePreset = () => {
   try { return clampPreset(JSON.parse(localStorage.getItem(GUIDE_KEY) || 'null')); }
   catch { return clampPreset(null); }
+};
+
+const loadCustomBrushes = () => {
+  try { return sanitizeCustom(JSON.parse(localStorage.getItem(CUSTOM_KEY) || '[]')); }
+  catch { return []; }
 };
 
 const CS = 500;
@@ -48,6 +55,10 @@ export default function CanvasWorkspace({
   const contextRef   = useRef(null);
   const isDrawingRef = useRef(false);
   const strokeRef    = useRef([]);
+  const [customBrushes, setCustomBrushes] = useState(loadCustomBrushes);
+  useEffect(() => {
+    try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(customBrushes)); } catch { /* storage blocked */ }
+  }, [customBrushes]);
   const lastPtRef    = useRef(null);
   const lastMidRef   = useRef({ x:0, y:0 });
   const widthRef     = useRef(strokeWidth);
@@ -696,6 +707,10 @@ export default function CanvasWorkspace({
           <ShapeCompare T={T} char={selectedChar} strokes={guideStrokes} params={guideParams} metrics={metrics} fontTick={fontTick} />
         </ShapeGuidePanel>
       )}
+
+      <BrushPalette T={T} brushMode={brushMode} strokeWidth={strokeWidth}
+        setBrushMode={setBrushMode} setStrokeWidth={setStrokeWidth}
+        custom={customBrushes} setCustom={setCustomBrushes} />
 
       {/* Brush controls */}
       <div className={`flex flex-wrap items-center gap-x-3 gap-y-2 p-2.5 rounded-xl border text-[10px] font-black ${T.sub}`}>

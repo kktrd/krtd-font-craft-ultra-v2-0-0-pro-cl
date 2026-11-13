@@ -449,3 +449,11 @@ Open with the 🤖 button (bottom-right) or **Alt+A**.
 
 **Verified**: both fonts load with fontTools; render identically in Chromium (its OTS web-font sanitizer accepted both); TrueType contours are all clockwise; structure/checksum/cmap/glyf round-trip are unit-tested (36 test groups).
 - Known limits: no GSUB (ligature glyphs live on Private-Use codepoints), no hinting (gasp requests smooth grey scaling), outlines are many overlapping convex pieces (correct under the non-zero rule, a little larger than a merged outline).
+
+## v4.7.0 — Brush presets palette
+
+- New collapsible **BRUSH PRESETS** panel above the brush controls (Canvas Studio).
+- 10 built-in presets in 3 groups (Pen nibs / Brushes / Monoline). A preset = brush mode + stroke width, so it works with the existing brush engine unchanged.
+- Each swatch shows a live preview of the stroke shape; the active preset is highlighted automatically when mode + size match.
+- **MY BRUSHES**: save the current brush (max 8), remove with ✕. Stored in `localStorage` (`krtd_brush_palette_v1`), validated on load.
+- Logic lives in `src/utils/brushPresets.js` (pure, covered by tests); UI in `BrushPalette.jsx`.
