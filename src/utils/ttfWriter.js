@@ -13,6 +13,7 @@
  */
 
 import { resolveLigatures, buildGSUB } from './gsubWriter.js';
+import { buildGPOS, buildGDEF } from './gposWriter.js';
 
 const u16 = (v) => [(v >> 8) & 255, v & 255];
 const i16 = (v) => u16(v & 0xffff);
@@ -251,6 +252,9 @@ export function buildTrueTypeFont(model) {
   };
   const gsub = buildGSUB(resolveLigatures(glyphs));
   if (gsub) tables.GSUB = Array.from(gsub);
+  const gpos = buildGPOS(glyphs), gdef = buildGDEF(glyphs);
+  if (gpos) tables.GPOS = Array.from(gpos);
+  if (gdef) tables.GDEF = Array.from(gdef);
   const tags = Object.keys(tables).sort();
   const numTables = tags.length;
   const sr = 16 * 2 ** Math.floor(Math.log2(numTables));

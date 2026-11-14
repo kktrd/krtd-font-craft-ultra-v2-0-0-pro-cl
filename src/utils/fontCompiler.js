@@ -15,6 +15,7 @@
  */
 import { buildTrueTypeFont, cleanContour, postScriptName } from './ttfWriter.js';
 import { resolveLigatures, buildGSUB, injectTable } from './gsubWriter.js';
+import { buildGPOS, buildGDEF, isMarkCode } from './gposWriter.js';
 import { FEATURE_FLAGS } from './featureFlags.js';
 import { strokeToContours, normalizeWinding } from './strokeOutline.js';
 
@@ -115,7 +116,8 @@ export function buildFontModel({ fontName, metrics, glyphs }) {
     const dx = SIDE_BEARING - minX;
     contours = contours.map(c => cleanContour(c.map(p => ({ x: p.x + dx, y: p.y })))).filter(Boolean);
     if (!contours.length) return;
-    const advance = Math.max(MIN_ADVANCE, Math.round((maxX - minX) + SIDE_BEARING * 2));
+    // Combining signs get zero advance and are attached to their base letter by GPOS.
+    const advance = char.length === 1 && isMarkCode(char.codePointAt(0)) ? 0 : Math.max(MIN_ADVANCE, Math.round((maxX - minX) + SIDE_BEARING * 2));
 
     let { unicode, isPUA } = FEATURE_FLAGS.ENABLE_LIGATURE_SAFE_EXPORT
       ? resolveGlyphCodepoint(char, puaCounterRef)
@@ -184,6 +186,9 @@ export async function compileOpenTypeCFF(args) {
   let bytes = new Uint8Array(font.toArrayBuffer());
   const gsub = buildGSUB(resolveLigatures(model.glyphs));
   if (gsub) bytes = injectTable(bytes, 'GSUB', gsub);
+  const gpos = buildGPOS(model.glyphs), gdef = buildGDEF(model.glyphs);
+  if (gpos) bytes = injectTable(bytes, 'GPOS', gpos);
+  if (gdef) bytes = injectTable(bytes, 'GDEF', gdef);
   return { bytes, compiledCount, puaMap, model };
 }
 

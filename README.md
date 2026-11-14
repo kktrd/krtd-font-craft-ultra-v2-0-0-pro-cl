@@ -470,3 +470,12 @@ Open with the 🤖 button (bottom-right) or **Alt+A**.
 - New **Export WOFF (web font)** button (Metrics panel). Packs the same real TrueType font (incl. GSUB ligatures) into WOFF 1.0 with per-table zlib compression (`src/utils/woffWriter.js`, uses the browser's built-in `CompressionStream`, no extra dependency).
 - Typically ~4× smaller than the TTF; use it in `@font-face` on websites.
 - Verified: lossless round-trip test of every table, and fontTools opens the result.
+
+## v5.0.0 — GPOS kerning + combining-mark positioning (GDEF)
+
+- `src/utils/gposWriter.js` adds **GPOS** and **GDEF** tables to every export (TTF, OTF, WOFF).
+- **Pair kerning (`kern`)**: computed automatically from the drawn outlines (ink profile per 25-unit band, gap vs the font's median gap). Over-wide pairs are tightened (max −150), colliding pairs loosened (max +60); tiny values ignored; max 4000 pairs.
+- **Mark-to-base (`mark`, `abvm`, `blwm`)** for the Sinhala combining signs that sit above/below a letter: ් (0DCA), ි (0DD2), ී (0DD3), ු (0DD4), ූ (0DD6), ඁ (0D81). Each mark gets zero advance and is centred on its base letter; it keeps the height you drew it at unless a tall base would collide (then it is lifted/lowered with a 20-unit gap).
+- GDEF classifies letters as bases and these signs as marks so shapers treat them correctly.
+- Not covered: spacing vowel signs placed beside the letter (ා, ෙ, ො …) and pre-base reordering still depend on the shaper plus your own drawing/advance; mark-to-mark stacking is not implemented.
+- Verified with fontTools (table parse) and Chromium/HarfBuzz (rendered ි / ු merge onto the base letter instead of trailing it).

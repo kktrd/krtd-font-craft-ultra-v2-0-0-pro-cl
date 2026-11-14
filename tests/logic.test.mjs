@@ -17,6 +17,7 @@ import { configuredProviders } from '../api/_providers.js';
 import { strokeToContours, strokeToPolygons, normalizeWinding, centerlineSamples } from '../src/utils/strokeOutline.js';
 import * as G from '../src/utils/guideMath.js';
 import * as BP from '../src/utils/brushPresets.js';
+import { computeKerning, computeMarkAttachments, buildGPOS, buildGDEF, inkProfile } from '../src/utils/gposWriter.js';
 import { toWOFF } from '../src/utils/woffWriter.js';
 import { resolveLigatures, buildGSUB, injectTable, sequenceVariants } from '../src/utils/gsubWriter.js';
 import { buildTrueTypeFont, signedArea, cleanContour, postScriptName } from '../src/utils/ttfWriter.js';
@@ -523,6 +524,44 @@ asyncT.push(['woffWriter: valid WOFF 1.0 container, lossless round-trip of every
     assert.deepEqual(Buffer.from(back), Buffer.from(orig[tag]), tag);
   }
 }]);
+t('gposWriter: optical kerning, mark attachment anchors, GPOS/GDEF structure', () => {
+  const box = (x0, x1, y0 = 0, y1 = 400) => [[{ x: x0, y: y0 }, { x: x0, y: y1 }, { x: x1, y: y1 }, { x: x1, y: y0 }]];
+  const G = (name, unicode, advance, contours) => ({ name, unicode, advance, contours });
+  const glyphs = [
+    G('.notdef', null, 500, box(50, 450)),
+    G('a', 0x0D9A, 460, box(60, 400)),
+    G('b', 0x0D9B, 460, box(60, 400)),
+    G('wide', 0x0D9C, 700, box(60, 400)),     // big right gap → pulled in
+    G('over', 0x0D9D, 460, box(60, 510)),     // ink past the advance → pushed apart
+    G('abv', 0x0DD2, 0, box(10, 90, 520, 560)),
+    G('blw', 0x0DD4, 0, box(10, 90, -150, -110)),
+  ];
+  const prof = inkProfile(box(60, 400), 0, 100);
+  assert.equal(prof.length, 4); assert.deepEqual(prof[0], [60, 400]);
+  const k = computeKerning(glyphs);
+  const v = (l, r) => (k.find((p) => p.left === l && p.right === r) || {}).value;
+  assert.equal(v(3, 1), -150);                 // wide → a: tightened (clamped)
+  assert.ok(v(4, 1) > 0);                      // over → a: loosened
+  assert.equal(v(1, 2), undefined);            // normal pair untouched
+  assert.ok(k.every((p) => ![5, 6].includes(p.left) && ![5, 6].includes(p.right)));   // marks never kerned
+  const m = computeMarkAttachments(glyphs);
+  assert.deepEqual(m.marks.map((x) => [x.gid, x.cls, x.above]), [[5, 0, true], [6, 1, false]]);
+  assert.equal(m.marks[0].ax, 50);
+  const bA = m.bases.find((b) => b.gid === 1);
+  assert.equal(bA.anchors[0].x, 230);          // centred on the base ink
+  assert.equal(bA.anchors[0].y, 520);          // keeps the drawn height when it already clears the base
+  const tall = computeMarkAttachments([...glyphs.slice(0, 5), G('tall', 0x0D9E, 460, box(60, 400, 0, 600)), glyphs[5], glyphs[6]]);
+  assert.equal(tall.bases.find((b) => b.gid === 5).anchors[0].y, 620);   // pushed up to clear a tall base
+  const gp = buildGPOS(glyphs), gd = buildGDEF(glyphs);
+  const dv = new DataView(gp.buffer, gp.byteOffset, gp.byteLength);
+  assert.equal(dv.getUint16(0), 1);
+  for (const o of [dv.getUint16(4), dv.getUint16(6), dv.getUint16(8)]) assert.ok(o < gp.length);
+  const lo = dv.getUint16(8); assert.equal(dv.getUint16(lo), 2);          // kern + mark-to-base lookups
+  const types = [0, 1].map((i) => dv.getUint16(lo + dv.getUint16(lo + 2 + i * 2))); assert.deepEqual(types, [2, 4]);
+  assert.equal(new DataView(gd.buffer, gd.byteOffset).getUint16(4 - 2), 0);
+  assert.equal(buildGPOS(glyphs.slice(0, 2)), null);                      // single glyph: nothing to position
+  assert.equal(buildGDEF(glyphs.slice(0, 4)), null);                      // no marks → no GDEF
+});
 for (const [name, fn] of asyncT) { try { await fn(); n++; console.log('ok  ' + name); } finally { globalThis.fetch = realFetch; } }
 
 console.log(`\n${n} test groups passed`);
