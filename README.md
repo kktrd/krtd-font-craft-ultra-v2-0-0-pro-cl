@@ -510,3 +510,8 @@ Open with the 🤖 button (bottom-right) or **Alt+A**.
 
 - **Cloud**: Push now also saves per-glyph spacing and font info in a new `settings jsonb` column of `font_projects`; Pull restores them (sanitised). Run `supabase/migration-v5.6-settings.sql` (already applied to the live project). If the column does not exist the app automatically saves without it, so older databases keep working.
 - **Brush shortcuts** (Canvas Studio): `Alt+1 … Alt+0` pick the 10 built-in presets, `,` / `.` step to the previous / next preset (built-in then your own), `[` `]` still change size. Listed in the Brush Presets panel.
+
+## v5.7.0 — Auto-space + spacing follows pasted glyphs
+
+- **Auto-space all** (SPACING card): optical spacing. For every drawn letter the app measures how much white space sits between the bounding box and the ink on each side (round / pointed shapes have more). Letters with more than the font's median get a little less bearing and boxy ones a little more (strength 0.4, steps of 5, within −50…+150). Marks and spacing vowel signs are left alone. It is a starting point — fine-tune per letter with the sliders. **Clear all** removes every manual adjustment. (`src/utils/autoSpacing.js`, tested.)
+- **Copy → Paste glyph** now also copies the source letter's manual spacing to the target letter.

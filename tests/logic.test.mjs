@@ -25,6 +25,8 @@ import { sanitizeMeta, metaToNames, META_DEFAULTS } from '../src/utils/fontMeta.
 import { sanitizeSpacing, setSpacing, getSpacing, SPACING_LIMITS } from '../src/utils/spacing.js';
 import { missingChars, sheetPlan, showable, SAMPLE_LINES } from '../src/utils/testSheet.js';
 import { exportSettings, importSettings, isMissingSettingsColumn } from '../src/utils/settingsSync.js';
+import { autoSpacing, edgeDepths } from '../src/utils/autoSpacing.js';
+import { copySpacing } from '../src/utils/settingsSync.js';
 import { toWOFF } from '../src/utils/woffWriter.js';
 import { resolveLigatures, buildGSUB, injectTable, sequenceVariants } from '../src/utils/gsubWriter.js';
 import { buildTrueTypeFont, signedArea, cleanContour, postScriptName } from '../src/utils/ttfWriter.js';
@@ -684,6 +686,28 @@ t('settingsSync: backup round-trip sanitises spacing + font info', () => {
     assert.deepEqual(e.spacing, r.spacing); assert.equal(e.meta.version, '3.100');
     const r2 = importSettings(undefined);                       // old backups without settings reset cleanly
     assert.deepEqual(r2.spacing, {}); assert.equal(r2.meta.version, '1.000');
+  } finally { delete globalThis.localStorage; }
+});
+t('autoSpacing: pointed letters get tighter bearings than boxy ones; copySpacing', () => {
+  const box = [[{ x: 0, y: 0 }, { x: 0, y: 400 }, { x: 300, y: 400 }, { x: 300, y: 0 }]];
+  const diamond = [[{ x: 150, y: 0 }, { x: 0, y: 200 }, { x: 150, y: 400 }, { x: 300, y: 200 }]];
+  const G = (u, c) => ({ name: 'g', unicode: u, advance: 400, contours: c });
+  assert.ok(edgeDepths(box).dl < 5);
+  assert.ok(edgeDepths(diamond).dl > 60);
+  const res = autoSpacing([G(null, box), G(0x0D9A, box), G(0x0D9B, box), G(0x0D9C, box), G(0x0D9D, diamond), G(0x0DD2, diamond), G(32, [])]);
+  assert.ok(res['ඝ'] === undefined || res['ඝ']);                 // keys are plain characters
+  assert.ok(res['\u0D9D'] && res['\u0D9D'].l < 0 && res['\u0D9D'].r < 0);   // diamond tightened
+  assert.equal(res['\u0D9A'], undefined);                       // median-like boxy letters untouched
+  assert.ok(!res['\u0DD2']);                                    // marks skipped
+  assert.deepEqual(autoSpacing([G(null, box), G(0x0D9A, box)]), {});   // too few glyphs
+  const store = { krtd_glyph_spacing_v1: JSON.stringify({ 'ක': { l: 10, r: 20 } }) };
+  globalThis.localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } };
+  try {
+    assert.equal(copySpacing('ක', 'ග'), true);
+    assert.deepEqual(JSON.parse(store.krtd_glyph_spacing_v1)['ග'], { l: 10, r: 20 });
+    assert.equal(copySpacing('ක', 'ක'), false);
+    copySpacing('ඛ', 'ග');                                       // source has none -> target reset to match
+    assert.equal(JSON.parse(store.krtd_glyph_spacing_v1)['ග'], undefined);
   } finally { delete globalThis.localStorage; }
 });
 for (const [name, fn] of asyncT) { try { await fn(); n++; console.log('ok  ' + name); } finally { globalThis.fetch = realFetch; } }

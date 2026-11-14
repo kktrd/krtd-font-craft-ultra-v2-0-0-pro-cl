@@ -47,6 +47,7 @@ export default function CanvasWorkspace({
   onOpenAtlas, onOpenMetrics,
   clipboardGlyph,
   onClearClipboard,
+  onGlyphPasted,
 }) {
   const canvasRef    = useRef(null);
   const predictCanvasRef = useRef(null);
@@ -570,8 +571,9 @@ export default function CanvasWorkspace({
     const pasted=JSON.parse(JSON.stringify(clipboardGlyph));
     const updated={...glyphs,[selectedChar]:pasted};
     setGlyphs(updated); redrawGlyph(pasted);
+    onGlyphPasted?.(selectedChar);
     onClearClipboard?.();
-  }, [clipboardGlyph, glyphs, selectedChar, redrawGlyph, onClearClipboard]);
+  }, [clipboardGlyph, glyphs, selectedChar, redrawGlyph, onClearClipboard, onGlyphPasted]);
 
   // ── PNG export ─────────────────────────────────────────────────────────
   const exportPNG = useCallback(() => {

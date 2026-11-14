@@ -32,7 +32,7 @@ export default function MetricsEngine({
         {/* Glyph Inspector — live analytics for the currently selected character */}
       <GlyphInspector selectedChar={selectedChar} glyphs={glyphs} T={T}/>
       <CoverageCard glyphs={glyphs} selectedChar={selectedChar} onSelectChar={onSelectChar} T={T}/>
-      <SpacingCard selectedChar={selectedChar} T={T}/>
+      <SpacingCard selectedChar={selectedChar} fontName={fontName} metrics={metrics} glyphs={glyphs} T={T}/>
       <MetaCard T={T}/>
       <QualityCard fontName={fontName} metrics={metrics} glyphs={glyphs} onSelectChar={onSelectChar} T={T}/>
 

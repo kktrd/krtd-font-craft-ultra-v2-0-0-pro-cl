@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { MoveHorizontal, RotateCcw } from 'lucide-react';
+import { MoveHorizontal, RotateCcw, Wand2 } from 'lucide-react';
 import { SPACING_LIMITS, loadSpacing, saveSpacing, setSpacing, getSpacing } from '../../utils/spacing.js';
 import { SETTINGS_EVENT, notifyConfigChanged } from '../../utils/settingsSync.js';
 
 /** Extra left / right spacing for the selected letter; applied when the font is exported / previewed. */
-export default function SpacingCard({ selectedChar, T }) {
+export default function SpacingCard({ selectedChar, fontName, metrics, glyphs, T }) {
   const [map, setMap] = useState(loadSpacing);
   const first = useRef(true);
   useEffect(() => {
@@ -18,6 +18,15 @@ export default function SpacingCard({ selectedChar, T }) {
     return () => window.removeEventListener(SETTINGS_EVENT, reload);
   }, []);
   const cur = getSpacing(map, selectedChar);
+  const [note, setNote] = useState('');
+  const autoAll = async () => {
+    try {
+      const [{ buildFontModel }, { autoSpacing }] = await Promise.all([import('../../utils/fontCompiler.js'), import('../../utils/autoSpacing.js')]);
+      const res = autoSpacing(buildFontModel({ fontName, metrics, glyphs }).model.glyphs);
+      setMap(saveSpacing(res));
+      setNote(`අකුරු ${Object.keys(res).length}ක් සකස් කළා`);
+    } catch { setNote('අකුරු 3කට වඩා අඳින්න, ඊට පස්සේ උත්සාහ කරන්න'); }
+  };
   const set = (patch) => setMap((m) => setSpacing(m, selectedChar, patch));
   const row = (k, label) => (
     <label className="flex items-center gap-2">
@@ -38,6 +47,13 @@ export default function SpacingCard({ selectedChar, T }) {
       </div>
       {row('l', 'වම (Left)')}
       {row('r', 'දකුණ (Right)')}
+      <div className="flex gap-2">
+        <button type="button" onClick={autoAll} className={`flex-1 py-1.5 rounded-lg border flex items-center justify-center gap-1 ${T.btn}`}>
+          <Wand2 className="w-3 h-3" aria-hidden="true" /> Auto-space all
+        </button>
+        <button type="button" onClick={() => { setMap(saveSpacing({})); setNote('සියල්ල reset කළා'); }} className="px-2 py-1.5 rounded-lg border opacity-80 hover:opacity-100">Clear all</button>
+      </div>
+      {note && <p className="text-[9px] opacity-80 font-bold" aria-live="polite">{note}</p>}
       <p className="text-[9px] opacity-60 font-bold">Export / Text Studio preview එකට බලපායි. මේ browser එකේ පමණක් save වෙයි (cloud sync නැත).</p>
     </div>
   );

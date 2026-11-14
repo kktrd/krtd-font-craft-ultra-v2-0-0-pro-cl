@@ -5,7 +5,7 @@ import { Loader2, X, User, Sparkles, WifiOff, RefreshCw } from 'lucide-react';
 import { getTokens }        from './utils/themeTokens.js';
 import { DEFAULT_METRICS }  from './utils/glyphData.js';
 import { useLiveFontPreview } from './hooks/useLiveFontPreview.js';
-import { exportSettings, importSettings, isMissingSettingsColumn } from './utils/settingsSync.js';
+import { exportSettings, importSettings, isMissingSettingsColumn, copySpacing } from './utils/settingsSync.js';
 import { computeStrokeProfile, suggestBrushSettings, ANCHOR_GLYPHS } from './utils/styleProfileEngine.js';
 import { FEATURE_FLAGS } from './utils/featureFlags.js';
 import { shortVersionLabel } from './utils/versionInfo.js';
@@ -94,6 +94,7 @@ function AppInner() {
   const [undoStack,    setUndoStack]    = useState([]);
   const [redoStack,    setRedoStack]    = useState([]);
   const [clipboardGlyph, setClipboardGlyph] = useState(null); // copy/paste between chars
+  const clipboardSourceRef = useRef(null);                    // which letter the clipboard glyph came from
   const [strokeWidth,  setStrokeWidth]  = useState(14);
   const [brushMode,    setBrushMode]    = useState('calligraphy');
   const [isEraser,     setIsEraser]     = useState(false);
@@ -339,6 +340,7 @@ function AppInner() {
   const copyGlyph = (fromChar) => {
     if (!glyphs[fromChar]?.length) return;
     setClipboardGlyph(JSON.parse(JSON.stringify(glyphs[fromChar])));
+    clipboardSourceRef.current = fromChar;
   };
 
   // ── JSON backup ──────────────────────────────────────────────────────────
@@ -730,6 +732,7 @@ function AppInner() {
                   onOpenMetrics={() => setMobileSheet('metrics')}
                   clipboardGlyph={clipboardGlyph}
                   onClearClipboard={() => setClipboardGlyph(null)}
+                  onGlyphPasted={(to) => copySpacing(clipboardSourceRef.current, to)}
                 />
               </section>
 
