@@ -44,6 +44,7 @@ export default function BrushPalette({ T, brushMode, strokeWidth, setBrushMode, 
       </button>
       {open && (
         <div className="px-2.5 pb-2.5 space-y-2">
+          <p className="opacity-60 font-bold">Shortcuts: Alt+1…0 = preset · , / . = පෙර / ඊළඟ preset · [ ] = size</p>
           {BRUSH_GROUPS.map((g) => (
             <div key={g.id}>
               <div className="opacity-60 mb-1">{g.label} · {g.si}</div>

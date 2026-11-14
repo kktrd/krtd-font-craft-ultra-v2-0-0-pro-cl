@@ -5,7 +5,7 @@ import { Loader2, X, User, Sparkles, WifiOff, RefreshCw } from 'lucide-react';
 import { getTokens }        from './utils/themeTokens.js';
 import { DEFAULT_METRICS }  from './utils/glyphData.js';
 import { useLiveFontPreview } from './hooks/useLiveFontPreview.js';
-import { exportSettings, importSettings } from './utils/settingsSync.js';
+import { exportSettings, importSettings, isMissingSettingsColumn } from './utils/settingsSync.js';
 import { computeStrokeProfile, suggestBrushSettings, ANCHOR_GLYPHS } from './utils/styleProfileEngine.js';
 import { FEATURE_FLAGS } from './utils/featureFlags.js';
 import { shortVersionLabel } from './utils/versionInfo.js';
@@ -245,8 +245,13 @@ function AppInner() {
   const syncToCloud = async (showAlert = true) => {
     if (!supabase) return;
     try {
-      const row = { font_name: fontName, user_id: ownerIdFor(authUser), metrics, glyphs, updated_at: new Date() };
+      let row = { font_name: fontName, user_id: ownerIdFor(authUser), metrics, glyphs, settings: exportSettings(), updated_at: new Date() };
       let { error } = await supabase.from('font_projects').upsert(row, { onConflict: 'user_id,font_name' });
+      // v5.6 SQL (settings column) not run yet -> save without it
+      if (error && isMissingSettingsColumn(error)) {
+        const { settings: _omit, ...plain } = row; row = plain;
+        ({ error } = await supabase.from('font_projects').upsert(row, { onConflict: 'user_id,font_name' }));
+      }
       // 42P10 = the v4.5 SQL (owner+name unique key) has not been run yet -> old single-key upsert
       if (error && error.code === '42P10') {
         ({ error } = await supabase.from('font_projects').upsert(row, { onConflict: 'font_name' }));
@@ -281,6 +286,7 @@ function AppInner() {
       else {
         if (data.metrics) setMetrics(data.metrics);
         if (data.glyphs)  setGlyphs(data.glyphs);
+        if (data.settings && Object.keys(data.settings).length) importSettings(data.settings);
         toast(legacy ? `✨ "${fontName}" (පරණ guest copy) load වුනා — Push කළාම ඔයාගේ අලුත් copy එකක් විදියට save වෙයි.` : `✨ "${fontName}" sync වුනා!`, 'success');
       }
     } catch (err) { toast(`❌ Pull error: ${err.message}`, 'error'); }

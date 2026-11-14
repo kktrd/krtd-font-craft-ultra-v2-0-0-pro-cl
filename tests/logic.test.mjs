@@ -24,7 +24,7 @@ import { qualityReport } from '../src/utils/fontQuality.js';
 import { sanitizeMeta, metaToNames, META_DEFAULTS } from '../src/utils/fontMeta.js';
 import { sanitizeSpacing, setSpacing, getSpacing, SPACING_LIMITS } from '../src/utils/spacing.js';
 import { missingChars, sheetPlan, showable, SAMPLE_LINES } from '../src/utils/testSheet.js';
-import { exportSettings, importSettings } from '../src/utils/settingsSync.js';
+import { exportSettings, importSettings, isMissingSettingsColumn } from '../src/utils/settingsSync.js';
 import { toWOFF } from '../src/utils/woffWriter.js';
 import { resolveLigatures, buildGSUB, injectTable, sequenceVariants } from '../src/utils/gsubWriter.js';
 import { buildTrueTypeFont, signedArea, cleanContour, postScriptName } from '../src/utils/ttfWriter.js';
@@ -465,6 +465,12 @@ t('brushPresets: presets valid, matching, safe custom palette, preview polygons'
   assert.ok(Math.abs(thick(up, 0) - thick(up, 10)) < 1e-9);
   for (const [x, y] of BP.previewPolygonPoints('uniform', 48)) assert.ok(x >= 0 && x <= 60 && y >= 0 && y <= 24);
   assert.ok(typeof BP.previewPolygon('calligraphy', 14) === 'string');
+  const L = BP.BRUSH_PRESETS;
+  assert.equal(BP.stepPreset('calligraphy', 8, 1).id, 'classic-nib');
+  assert.equal(BP.stepPreset('calligraphy', 8, -1).id, 'marker');             // wraps
+  assert.equal(BP.stepPreset('uniform', 32, 1).id, 'fine-nib');   // wraps forward
+  assert.equal(BP.stepPreset('tapered', 17, 1).id, L[0].id); assert.equal(BP.stepPreset('tapered', 17, -1).id, L[L.length - 1].id);
+  assert.equal(BP.stepPreset('uniform', 5, 1, []), null);
 });
 t('gsubWriter: ligature resolution, GSUB structure, table injection keeps checksums valid', () => {
   const g = [
@@ -659,6 +665,13 @@ t('testSheet: missing-letter detection, split vowels, plan, combining-sign label
   assert.equal(plan.length, SAMPLE_LINES.length);
   assert.ok(plan.every((p) => p.text && Array.isArray(p.missing)));
   assert.equal(showable('ා'), '\u25ccා'); assert.equal(showable('ක'), 'ක');
+});
+t('settingsSync: missing-column detection', () => {
+  assert.equal(isMissingSettingsColumn(null), false);
+  assert.equal(isMissingSettingsColumn({ code: '42703', message: 'x' }), true);
+  assert.equal(isMissingSettingsColumn({ code: 'PGRST204', message: "Could not find the 'settings' column of 'font_projects' in the schema cache" }), true);
+  assert.equal(isMissingSettingsColumn({ code: '42P10', message: 'no unique constraint' }), false);
+  assert.equal(isMissingSettingsColumn({ code: '23505', message: 'duplicate key' }), false);
 });
 t('settingsSync: backup round-trip sanitises spacing + font info', () => {
   const store = {};

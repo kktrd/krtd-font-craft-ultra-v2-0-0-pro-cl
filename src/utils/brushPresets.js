@@ -117,3 +117,11 @@ export function previewPolygon(mode, width, w = 60, h = 24) {
     .map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`)
     .join(' ');
 }
+
+/** Next / previous preset in the combined list (presets then custom). No current match: first (forward) / last (back). */
+export function stepPreset(mode, width, dir, list = BRUSH_PRESETS) {
+  if (!list.length) return null;
+  const i = list.findIndex((p) => p.mode === mode && p.width === width);
+  if (i < 0) return dir > 0 ? list[0] : list[list.length - 1];
+  return list[(i + (dir > 0 ? 1 : -1) + list.length) % list.length];
+}

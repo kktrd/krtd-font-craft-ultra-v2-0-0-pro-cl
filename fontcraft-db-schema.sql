@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS public.font_projects (
                           CHECK (role IN ('guest','designer','admin')),
   metrics     jsonb       NOT NULL DEFAULT '{}',
   glyphs      jsonb       NOT NULL DEFAULT '{}',
+  settings    jsonb       NOT NULL DEFAULT '{}',   -- spacing + font info (v5.6)
   is_public   boolean     NOT NULL DEFAULT false,
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now(),

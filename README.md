@@ -505,3 +505,8 @@ Open with the 🤖 button (bottom-right) or **Alt+A**.
 - The **JSON backup** now includes a `settings` block (per-glyph spacing + font info). Importing a backup restores them (re-sanitised, old backups without it are fine) and the cards update immediately (`src/utils/settingsSync.js`).
 - Changing spacing or saving font info now refreshes the Text Studio live preview right away (previously it waited for the next draw).
 - Still not in cloud Push/Pull: spacing and font info are per browser + JSON backup.
+
+## v5.6.0 — Cloud sync of spacing + font info, brush shortcuts
+
+- **Cloud**: Push now also saves per-glyph spacing and font info in a new `settings jsonb` column of `font_projects`; Pull restores them (sanitised). Run `supabase/migration-v5.6-settings.sql` (already applied to the live project). If the column does not exist the app automatically saves without it, so older databases keep working.
+- **Brush shortcuts** (Canvas Studio): `Alt+1 … Alt+0` pick the 10 built-in presets, `,` / `.` step to the previous / next preset (built-in then your own), `[` `]` still change size. Listed in the Brush Presets panel.

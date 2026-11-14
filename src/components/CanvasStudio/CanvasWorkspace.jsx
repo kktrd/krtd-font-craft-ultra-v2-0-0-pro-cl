@@ -14,7 +14,7 @@ import {
 import ShapeGuidePanel from './ShapeGuidePanel.jsx';
 import ShapeCompare from './ShapeCompare.jsx';
 import BrushPalette from './BrushPalette.jsx';
-import { CUSTOM_KEY, sanitizeCustom } from '../../utils/brushPresets.js';
+import { CUSTOM_KEY, sanitizeCustom, stepPreset, BRUSH_PRESETS } from '../../utils/brushPresets.js';
 
 const GUIDE_KEY = 'krtd_shape_guide_v1';
 const loadGuidePreset = () => {
@@ -319,6 +319,18 @@ export default function CanvasWorkspace({
         if (e.key==='y' || (e.shiftKey && e.key==='z')) { e.preventDefault(); handleRedo(); }
         return;
       }
+      // Alt+1…9 / Alt+0 → built-in brush presets; , and . → previous / next preset
+      if (e.altKey && /^Digit[0-9]$/.test(e.code)) {
+        const idx = e.code === 'Digit0' ? 9 : Number(e.code.slice(5)) - 1;
+        const p = BRUSH_PRESETS[idx];
+        if (p) { e.preventDefault(); setBrushMode(p.mode); setStrokeWidth(p.width); setIsEraser(false); }
+        return;
+      }
+      if (e.key === ',' || e.key === '.') {
+        const p = stepPreset(brushMode, strokeWidth, e.key === '.' ? 1 : -1, BRUSH_PRESETS.concat(customBrushes));
+        if (p) { setBrushMode(p.mode); setStrokeWidth(p.width); setIsEraser(false); }
+        return;
+      }
       switch (e.key.toLowerCase()) {
         case 'e': setIsEraser(true);  break;
         case 'b': setIsEraser(false); break;
@@ -340,7 +352,7 @@ export default function CanvasWorkspace({
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [undoStack, redoStack, glyphs, selectedChar]);
+  }, [undoStack, redoStack, glyphs, selectedChar, brushMode, strokeWidth, customBrushes]);
 
   // ── Coordinate mapping ──────────────────────────────────────────────────
   const getCoords = useCallback((e) => {

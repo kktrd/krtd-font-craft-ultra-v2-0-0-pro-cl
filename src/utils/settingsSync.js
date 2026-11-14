@@ -22,3 +22,10 @@ export function importSettings(settings) {
 export const notifyConfigChanged = () => {
   if (typeof window !== 'undefined') window.dispatchEvent(new Event(CONFIG_EVENT));
 };
+
+/** True when a Supabase error means the `settings` column does not exist yet (migration not run). */
+export function isMissingSettingsColumn(error) {
+  if (!error) return false;
+  const msg = String(error.message || '');
+  return error.code === '42703' || error.code === 'PGRST204' || (/settings/i.test(msg) && /column|schema cache/i.test(msg));
+}
