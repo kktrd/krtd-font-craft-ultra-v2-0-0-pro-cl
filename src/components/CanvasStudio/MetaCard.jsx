@@ -1,6 +1,7 @@
-import React, { useState, useId } from 'react';
+import React, { useState, useId, useEffect } from 'react';
 import { BadgeInfo, ChevronDown } from 'lucide-react';
 import { FS_TYPES, loadMeta, saveMeta, sanitizeMeta } from '../../utils/fontMeta.js';
+import { SETTINGS_EVENT, notifyConfigChanged } from '../../utils/settingsSync.js';
 
 const FIELDS = [
   ['designer', 'Designer · නිර්මාණකරු', 80],
@@ -17,7 +18,12 @@ export default function MetaCard({ T, onSaved }) {
   const [meta, setMeta] = useState(loadMeta);
   const [saved, setSaved] = useState(false);
   const uid = useId();
-  const save = () => { const m = saveMeta(meta); setMeta(m); setSaved(true); setTimeout(() => setSaved(false), 1800); if (onSaved) onSaved(m); };
+  useEffect(() => {
+    const reload = () => setMeta(loadMeta());
+    window.addEventListener(SETTINGS_EVENT, reload);
+    return () => window.removeEventListener(SETTINGS_EVENT, reload);
+  }, []);
+  const save = () => { const m = saveMeta(meta); setMeta(m); notifyConfigChanged(); setSaved(true); setTimeout(() => setSaved(false), 1800); if (onSaved) onSaved(m); };
   const cleaned = sanitizeMeta(meta);
   const urlBad = meta.url && !cleaned.url;
   return (

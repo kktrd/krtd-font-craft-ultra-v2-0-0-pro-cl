@@ -1,11 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MoveHorizontal, RotateCcw } from 'lucide-react';
 import { SPACING_LIMITS, loadSpacing, saveSpacing, setSpacing, getSpacing } from '../../utils/spacing.js';
+import { SETTINGS_EVENT, notifyConfigChanged } from '../../utils/settingsSync.js';
 
 /** Extra left / right spacing for the selected letter; applied when the font is exported / previewed. */
 export default function SpacingCard({ selectedChar, T }) {
   const [map, setMap] = useState(loadSpacing);
-  useEffect(() => { saveSpacing(map); }, [map]);
+  const first = useRef(true);
+  useEffect(() => {
+    saveSpacing(map);
+    if (first.current) { first.current = false; return; }
+    notifyConfigChanged();
+  }, [map]);
+  useEffect(() => {
+    const reload = () => { first.current = true; setMap(loadSpacing()); };
+    window.addEventListener(SETTINGS_EVENT, reload);
+    return () => window.removeEventListener(SETTINGS_EVENT, reload);
+  }, []);
   const cur = getSpacing(map, selectedChar);
   const set = (patch) => setMap((m) => setSpacing(m, selectedChar, patch));
   const row = (k, label) => (

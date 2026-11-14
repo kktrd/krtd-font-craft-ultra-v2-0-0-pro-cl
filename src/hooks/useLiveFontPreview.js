@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { FEATURE_FLAGS } from '../utils/featureFlags.js';
+import { CONFIG_EVENT } from '../utils/settingsSync.js';
 
 const PREVIEW_FAMILY = 'KRTDLivePreview';
 const DEBOUNCE_MS = 1500;
@@ -28,6 +29,13 @@ export function useLiveFontPreview(fontName, metrics, glyphs, enabled = true) {
   const [isCompiling,  setIsCompiling]  = useState(false);
   const [glyphCount,   setGlyphCount]   = useState(0);
   const [compileError, setCompileError] = useState(null);
+
+  const [configTick, setConfigTick] = useState(0);
+  useEffect(() => {
+    const bump = () => setConfigTick((t) => t + 1);
+    window.addEventListener(CONFIG_EVENT, bump);
+    return () => window.removeEventListener(CONFIG_EVENT, bump);
+  }, []);
 
   const styleElRef = useRef(null);
   const timerRef    = useRef(null);
@@ -76,7 +84,7 @@ export function useLiveFontPreview(fontName, metrics, glyphs, enabled = true) {
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timerRef.current);
-  }, [fontName, metrics, glyphs, enabled]);
+  }, [fontName, metrics, glyphs, enabled, configTick]);
 
   // Clean up the injected <style> tag when the app unmounts entirely
   useEffect(() => {

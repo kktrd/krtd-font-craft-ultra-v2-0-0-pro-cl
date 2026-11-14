@@ -5,6 +5,7 @@ import { Loader2, X, User, Sparkles, WifiOff, RefreshCw } from 'lucide-react';
 import { getTokens }        from './utils/themeTokens.js';
 import { DEFAULT_METRICS }  from './utils/glyphData.js';
 import { useLiveFontPreview } from './hooks/useLiveFontPreview.js';
+import { exportSettings, importSettings } from './utils/settingsSync.js';
 import { computeStrokeProfile, suggestBrushSettings, ANCHOR_GLYPHS } from './utils/styleProfileEngine.js';
 import { FEATURE_FLAGS } from './utils/featureFlags.js';
 import { shortVersionLabel } from './utils/versionInfo.js';
@@ -338,7 +339,7 @@ function AppInner() {
   const exportJSON = () => {
     const a   = document.createElement('a');
     a.href    = 'data:text/json;charset=utf-8,' +
-                encodeURIComponent(JSON.stringify({ fontName, metrics, glyphs }, null, 2));
+                encodeURIComponent(JSON.stringify({ fontName, metrics, glyphs, settings: exportSettings() }, null, 2));
     a.download = `${fontName}_backup.json`;
     document.body.appendChild(a); a.click(); a.remove();
   };
@@ -353,6 +354,7 @@ function AppInner() {
           if (d.fontName) setFontName(d.fontName);
           if (d.metrics)  setMetrics(d.metrics);
           setGlyphs(d.glyphs);
+          if (d.settings) importSettings(d.settings);
           toast('🎯 Backup loaded!', 'success');
         } else toast('❌ Invalid backup file.', 'error');
       } catch { toast('❌ JSON parse error.', 'error'); }

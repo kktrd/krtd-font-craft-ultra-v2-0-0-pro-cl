@@ -24,6 +24,7 @@ import { qualityReport } from '../src/utils/fontQuality.js';
 import { sanitizeMeta, metaToNames, META_DEFAULTS } from '../src/utils/fontMeta.js';
 import { sanitizeSpacing, setSpacing, getSpacing, SPACING_LIMITS } from '../src/utils/spacing.js';
 import { missingChars, sheetPlan, showable, SAMPLE_LINES } from '../src/utils/testSheet.js';
+import { exportSettings, importSettings } from '../src/utils/settingsSync.js';
 import { toWOFF } from '../src/utils/woffWriter.js';
 import { resolveLigatures, buildGSUB, injectTable, sequenceVariants } from '../src/utils/gsubWriter.js';
 import { buildTrueTypeFont, signedArea, cleanContour, postScriptName } from '../src/utils/ttfWriter.js';
@@ -658,6 +659,19 @@ t('testSheet: missing-letter detection, split vowels, plan, combining-sign label
   assert.equal(plan.length, SAMPLE_LINES.length);
   assert.ok(plan.every((p) => p.text && Array.isArray(p.missing)));
   assert.equal(showable('ා'), '\u25ccා'); assert.equal(showable('ක'), 'ක');
+});
+t('settingsSync: backup round-trip sanitises spacing + font info', () => {
+  const store = {};
+  globalThis.localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } };
+  try {
+    const r = importSettings({ spacing: { 'ක': { l: 20, r: 999 }, '<x': { l: 1, r: 1 } }, meta: { designer: 'A<b>', url: 'ftp://x', version: '3.1' } });
+    assert.deepEqual(r.spacing, { 'ක': { l: 20, r: 150 } });
+    assert.equal(r.meta.designer, 'Ab'); assert.equal(r.meta.url, ''); assert.equal(r.meta.version, '3.100');
+    const e = exportSettings();
+    assert.deepEqual(e.spacing, r.spacing); assert.equal(e.meta.version, '3.100');
+    const r2 = importSettings(undefined);                       // old backups without settings reset cleanly
+    assert.deepEqual(r2.spacing, {}); assert.equal(r2.meta.version, '1.000');
+  } finally { delete globalThis.localStorage; }
 });
 for (const [name, fn] of asyncT) { try { await fn(); n++; console.log('ok  ' + name); } finally { globalThis.fetch = realFetch; } }
 

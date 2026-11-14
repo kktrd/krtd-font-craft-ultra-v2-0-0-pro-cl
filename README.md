@@ -499,3 +499,9 @@ Open with the 🤖 button (bottom-right) or **Alt+A**.
 
 - **Typing Test Sheet (PNG)** button (Metrics panel): compiles the font, loads it with `FontFace`, and draws 6 real Sinhala sample lines at 72 / 44 / 28 px using normal browser text shaping — so ligatures (GSUB), kerning and mark positioning (GPOS) are exactly what a user will see. Each line is labelled "All letters drawn" or "Missing: …" (combining signs shown on a ◌). Tested end-to-end in headless Chromium.
 - **SPACING card** (Metrics panel): extra left / right bearing (−50 … +150 units) for the selected letter. Applied in the compiled font (export + Text Studio preview). Stored in this browser (`krtd_glyph_spacing_v1`); not part of the cloud/JSON project yet. The Text Studio live preview picks the change up the next time the glyphs or metrics change.
+
+## v5.5.0 — Settings travel with the backup + live preview refresh
+
+- The **JSON backup** now includes a `settings` block (per-glyph spacing + font info). Importing a backup restores them (re-sanitised, old backups without it are fine) and the cards update immediately (`src/utils/settingsSync.js`).
+- Changing spacing or saving font info now refreshes the Text Studio live preview right away (previously it waited for the next draw).
+- Still not in cloud Push/Pull: spacing and font info are per browser + JSON backup.
