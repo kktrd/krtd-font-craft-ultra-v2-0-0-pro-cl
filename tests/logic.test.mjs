@@ -21,6 +21,7 @@ import * as BP from '../src/utils/brushPresets.js';
 import { computeKerning, computeMarkAttachments, buildGPOS, buildGDEF, inkProfile } from '../src/utils/gposWriter.js';
 import { coverageReport, PRIORITY, hasInk } from '../src/utils/coverage.js';
 import { qualityReport } from '../src/utils/fontQuality.js';
+import { sanitizeMeta, metaToNames, META_DEFAULTS } from '../src/utils/fontMeta.js';
 import { toWOFF } from '../src/utils/woffWriter.js';
 import { resolveLigatures, buildGSUB, injectTable, sequenceVariants } from '../src/utils/gsubWriter.js';
 import { buildTrueTypeFont, signedArea, cleanContour, postScriptName } from '../src/utils/ttfWriter.js';
@@ -611,6 +612,25 @@ t('fontQuality: errors, ligature parts, bounds, core coverage, clean pass', () =
   assert.ok(code('core-missing'));
   assert.ok(r.counts.warn >= 3);
   assert.ok(!code('skipped'));
+});
+t('fontMeta: sanitising, version format, url safety, name mapping, fsType in OS/2', () => {
+  assert.deepEqual(sanitizeMeta(null), { ...META_DEFAULTS, designer: '', url: '', license: '' });
+  const m = sanitizeMeta({ designer: '  <b>Kasun</b>\n  T  ', url: 'javascript:alert(1)', version: '2.5', fsType: 8, copyright: '' });
+  assert.equal(m.designer, 'bKasun/b T'); assert.equal(m.url, ''); assert.equal(m.version, '2.500'); assert.equal(m.fsType, 8);
+  assert.equal(m.copyright, META_DEFAULTS.copyright);
+  assert.equal(sanitizeMeta({ version: 'abc' }).version, '1.000');
+  assert.equal(sanitizeMeta({ version: '1.2345' }).version, '1.000');
+  assert.equal(sanitizeMeta({ fsType: 99 }).fsType, 0);
+  assert.equal(sanitizeMeta({ url: 'https://example.com/x' }).url, 'https://example.com/x');
+  const n = metaToNames({ designer: 'K', version: '1.1' });
+  assert.equal(n.version, 'Version 1.100'); assert.equal(n.designer, 'K'); assert.equal(n.url, undefined);
+  const sq = [{ x: 0, y: 0 }, { x: 0, y: 100 }, { x: 100, y: 100 }, { x: 100, y: 0 }];
+  const f = buildTrueTypeFont({ familyName: 'M', styleName: 'Regular', unitsPerEm: 1000, ascender: 800, descender: -200, fsType: 8,
+    names: n, glyphs: [{ name: '.notdef', unicode: null, advance: 500, contours: [sq] }, { name: 'a', unicode: 97, advance: 500, contours: [sq] }] });
+  const dv = new DataView(f.buffer, f.byteOffset, f.byteLength);
+  let os2 = -1; for (let i = 0; i < dv.getUint16(4); i++) { const o = 12 + i * 16; if (String.fromCharCode(f[o], f[o + 1], f[o + 2], f[o + 3]) === 'OS/2') os2 = dv.getUint32(o + 8); }
+  assert.equal(dv.getUint16(os2 + 8), 8);                      // fsType
+  assert.ok(Buffer.from(f).includes(Buffer.from([0, 0x4b])));  // designer in name table (UTF-16BE)
 });
 for (const [name, fn] of asyncT) { try { await fn(); n++; console.log('ok  ' + name); } finally { globalThis.fetch = realFetch; } }
 

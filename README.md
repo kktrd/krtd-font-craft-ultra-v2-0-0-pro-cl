@@ -489,3 +489,8 @@ Open with the 🤖 button (bottom-right) or **Alt+A**.
 
 - **EXPORT CHECK** card (Metrics panel → "Run check"): runs the same font build the exporter uses and lists problems in plain Sinhala: nothing drawn, glyphs that would be skipped, ligatures that can never auto-form because a component letter is missing (e.g. ක්ෂ without ් or ෂ), glyphs far outside the ascender/descender lines, dot-sized glyphs, very complex or very wide glyphs, missing core letters and missing common pili. Each listed letter is clickable to jump to it. Logic: `src/utils/fontQuality.js` (loaded on demand, tested).
 - Text Studio already renders with the compiled font, so typed Sinhala there goes through the same GSUB/GPOS shaping as the exported file.
+
+## v5.3.0 — Font info editor
+
+- **FONT INFO** card (Metrics panel): designer, copyright, license, website, description, version (`1.000` format) and embedding permission (Installable / Editable / Preview & print). Saved in the browser (`krtd_font_meta_v1`) and written into every export: name table (ids 0, 5, 9, 10, 11, 13) and OS/2 `fsType` for TTF/WOFF; the OTF export gets the text fields (its fsType stays 0).
+- Inputs are sanitised (`<>`/control characters stripped, URL must be http(s), version normalised) in `src/utils/fontMeta.js` (tested).

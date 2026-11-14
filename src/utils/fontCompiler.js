@@ -15,6 +15,7 @@
  */
 import { buildTrueTypeFont, cleanContour, postScriptName } from './ttfWriter.js';
 import { resolveLigatures, buildGSUB, injectTable } from './gsubWriter.js';
+import { loadMeta, metaToNames } from './fontMeta.js';
 import { buildGPOS, buildGDEF, isMarkCode, SIGNS_POST, SIGNS_PRE } from './gposWriter.js';
 import { FEATURE_FLAGS } from './featureFlags.js';
 import { strokeToContours, normalizeWinding } from './strokeOutline.js';
@@ -80,17 +81,13 @@ function notdefContours() {
   ];
 }
 
-const FONT_NAMES = {
-  copyright:   'Created with KRTD Font Craft Ultra',
-  description: 'Custom Sinhala font designed in KRTD Font Craft Ultra',
-  version:     'Version 1.000',
-};
 
 /**
  * Turns the drawn glyphs into a plain, format-neutral font model (integer outlines).
  * Both the TrueType (.ttf) and the CFF (.otf) writers consume this, so they always match.
  */
 export function buildFontModel({ fontName, metrics, glyphs }) {
+  const meta = loadMeta();
   const baselineY = metrics.baseline;
   const ascender  = Math.round((metrics.baseline - metrics.ascender) * SCALE);
   const descender = -Math.round((metrics.descender - metrics.baseline) * SCALE);
@@ -153,7 +150,7 @@ export function buildFontModel({ fontName, metrics, glyphs }) {
       familyName, styleName: 'Regular', unitsPerEm: UNITS_PER_EM, ascender, descender,
       xHeight: Math.round((metrics.baseline - metrics.xHeight) * SCALE),
       capHeight: Math.round((metrics.baseline - metrics.capHeight) * SCALE),
-      names: FONT_NAMES, glyphs: list,
+      names: metaToNames(meta), fsType: meta.fsType, glyphs: list,
     },
     compiledCount, puaMap,
   };
@@ -186,6 +183,7 @@ export async function compileOpenTypeCFF(args) {
     familyName: model.familyName, styleName: model.styleName, unitsPerEm: model.unitsPerEm,
     ascender: model.ascender, descender: model.descender, glyphs: glyphList,
     copyright: model.names.copyright, description: model.names.description, version: model.names.version,
+    designer: model.names.designer, designerURL: model.names.url, license: model.names.license,
     weightClass: 400, manufacturer: 'KRTD Font Craft Ultra',
     postScriptName: postScriptName(model.familyName, model.styleName),
   });

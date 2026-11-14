@@ -217,7 +217,7 @@ export function buildTrueTypeFont(model) {
   if (has(0xe000, 0xf8ff)) setBit(60);   // Private Use Area
   const avg = Math.round(glyphs.filter((g, i) => enc[i].bbox).reduce((s, g) => s + g.advance, 0) / Math.max(1, glyphs.filter((g, i) => enc[i].bbox).length));
   const os2 = new Buf();
-  os2.u16(4).i16(avg).u16(400).u16(5).u16(0)                      // version, xAvgCharWidth, weight, width, fsType
+  os2.u16(4).i16(avg).u16(400).u16(5).u16(model.fsType || 0)          // version, xAvgCharWidth, weight, width, fsType
     .i16(Math.round(upem * 0.65)).i16(Math.round(upem * 0.6)).i16(0).i16(Math.round(upem * 0.14))   // subscript size/offset
     .i16(Math.round(upem * 0.65)).i16(Math.round(upem * 0.6)).i16(0).i16(Math.round(upem * 0.48))   // superscript
     .i16(Math.round(upem * 0.05)).i16(Math.round(upem * 0.26))     // strikeout size / position
