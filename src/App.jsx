@@ -414,6 +414,19 @@ function AppInner() {
     }
   };
 
+  const exportTestSheet = async () => {
+    setCloudLoading(true);
+    try {
+      const { downloadTestSheet } = await import('./utils/fontCompiler.js');
+      const n = await downloadTestSheet(fontName, metrics, glyphs);
+      toast(`🎉 "${fontName}-typing-test.png" — ${n} lines`, 'success', 5000);
+    } catch (err) {
+      toast(`❌ Test sheet error: ${err.message}`, 'error');
+    } finally {
+      setCloudLoading(false);
+    }
+  };
+
   const compileOTF = async () => {
     setCloudLoading(true);
     try {
@@ -509,6 +522,7 @@ function AppInner() {
     onCompileTTF: compileTTF,
     onCompileOTF: compileOTF,
     onCompileWOFF: compileWOFF,
+    onExportTestSheet: exportTestSheet,
     onSelectChar: setSelectedChar,
     onExportSpecimenPDF: exportSpecimenPDF,
     onOpenHistory: openHistorySheet,

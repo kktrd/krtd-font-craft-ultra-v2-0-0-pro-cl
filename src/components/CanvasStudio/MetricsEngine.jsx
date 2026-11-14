@@ -3,6 +3,7 @@ import GlyphInspector from './GlyphInspector.jsx';
 import CoverageCard from './CoverageCard.jsx';
 import QualityCard from './QualityCard.jsx';
 import MetaCard from './MetaCard.jsx';
+import SpacingCard from './SpacingCard.jsx';
 import { Sliders, RotateCcw, UploadCloud, DownloadCloud, Download, Upload, FileType2, History, FileText, Brain } from 'lucide-react';
 import { METRIC_LABELS } from '../../utils/glyphData.js';
 
@@ -19,7 +20,7 @@ export default function MetricsEngine({
   fontName, setFontName,
   onPushCloud, onPullCloud,
   onExportJSON, onImportJSON,
-  onCompileSVG, onCompileTTF, onCompileOTF, onCompileWOFF, onOpenHistory, onExportSpecimenPDF,
+  onCompileSVG, onCompileTTF, onCompileOTF, onCompileWOFF, onExportTestSheet, onOpenHistory, onExportSpecimenPDF,
   onLearnStyleProfile, styleProfile, savedLabel,
   selectedChar, glyphs, onExportAllPNGs, onSelectChar,
   T,
@@ -31,6 +32,7 @@ export default function MetricsEngine({
         {/* Glyph Inspector — live analytics for the currently selected character */}
       <GlyphInspector selectedChar={selectedChar} glyphs={glyphs} T={T}/>
       <CoverageCard glyphs={glyphs} selectedChar={selectedChar} onSelectChar={onSelectChar} T={T}/>
+      <SpacingCard selectedChar={selectedChar} T={T}/>
       <MetaCard T={T}/>
       <QualityCard fontName={fontName} metrics={metrics} glyphs={glyphs} onSelectChar={onSelectChar} T={T}/>
 
@@ -151,6 +153,12 @@ export default function MetricsEngine({
           <button onClick={onCompileWOFF}
             className={`w-full py-2.5 rounded-xl text-[10px] font-bold flex items-center justify-center gap-2 border transition ${T.accentBg}`}>
             <FileType2 className="w-3.5 h-3.5" aria-hidden="true" /> Export WOFF (web font)
+          </button>
+        )}
+        {onExportTestSheet && (
+          <button onClick={onExportTestSheet}
+            className={`w-full py-2.5 rounded-xl text-[10px] font-bold flex items-center justify-center gap-2 border transition ${T.accentBg}`}>
+            <Download className="w-3.5 h-3.5" aria-hidden="true" /> Typing Test Sheet (PNG)
           </button>
         )}
         <button onClick={onExportSpecimenPDF}

@@ -22,6 +22,8 @@ import { computeKerning, computeMarkAttachments, buildGPOS, buildGDEF, inkProfil
 import { coverageReport, PRIORITY, hasInk } from '../src/utils/coverage.js';
 import { qualityReport } from '../src/utils/fontQuality.js';
 import { sanitizeMeta, metaToNames, META_DEFAULTS } from '../src/utils/fontMeta.js';
+import { sanitizeSpacing, setSpacing, getSpacing, SPACING_LIMITS } from '../src/utils/spacing.js';
+import { missingChars, sheetPlan, showable, SAMPLE_LINES } from '../src/utils/testSheet.js';
 import { toWOFF } from '../src/utils/woffWriter.js';
 import { resolveLigatures, buildGSUB, injectTable, sequenceVariants } from '../src/utils/gsubWriter.js';
 import { buildTrueTypeFont, signedArea, cleanContour, postScriptName } from '../src/utils/ttfWriter.js';
@@ -631,6 +633,31 @@ t('fontMeta: sanitising, version format, url safety, name mapping, fsType in OS/
   let os2 = -1; for (let i = 0; i < dv.getUint16(4); i++) { const o = 12 + i * 16; if (String.fromCharCode(f[o], f[o + 1], f[o + 2], f[o + 3]) === 'OS/2') os2 = dv.getUint32(o + 8); }
   assert.equal(dv.getUint16(os2 + 8), 8);                      // fsType
   assert.ok(Buffer.from(f).includes(Buffer.from([0, 0x4b])));  // designer in name table (UTF-16BE)
+});
+t('spacing: sanitise, clamp, set/reset, and effect on exported advance', () => {
+  assert.deepEqual(sanitizeSpacing(null), {}); assert.deepEqual(sanitizeSpacing([1]), {});
+  const m = sanitizeSpacing({ 'ක': { l: 999, r: -999 }, 'ග': { l: 0, r: 0 }, 'x<': { l: 5, r: 5 }, 'ච': { l: 'a', r: 7.4 } });
+  assert.deepEqual(m, { 'ක': { l: SPACING_LIMITS.max, r: SPACING_LIMITS.min }, 'ච': { l: 0, r: 7 } });
+  let s = setSpacing({}, 'ක', { l: 20 }); assert.deepEqual(getSpacing(s, 'ක'), { l: 20, r: 0 });
+  s = setSpacing(s, 'ක', { l: 0 }); assert.deepEqual(s, {});
+  assert.deepEqual(getSpacing({}, 'ක'), { l: 0, r: 0 });
+  const metrics = { baseline: 400, ascender: 100, descender: 480, xHeight: 200, capHeight: 120 };
+  const line = (x1, y1, x2, y2) => { const a = []; for (let i = 0; i <= 8; i++) a.push({ x: x1 + (x2 - x1) * i / 8, y: y1 + (y2 - y1) * i / 8, isEraser: false, strokeWidth: 14 }); return a; };
+  const adv = () => buildFontModel({ fontName: 'S', metrics, glyphs: { 'ක': [line(100, 200, 250, 350)] } }).model.glyphs.find((g) => g.unicode === 0x0d9a).advance;
+  const before = adv();
+  globalThis.localStorage = { getItem: (k) => (k === 'krtd_glyph_spacing_v1' ? JSON.stringify({ 'ක': { l: 20, r: 30 } }) : null), setItem() {} };
+  try { assert.equal(adv(), before + 50); } finally { delete globalThis.localStorage; }
+});
+t('testSheet: missing-letter detection, split vowels, plan, combining-sign labels', () => {
+  const ink = [[{ x: 1, y: 1, isEraser: false }, { x: 9, y: 9, isEraser: false }]];
+  assert.deepEqual(missingChars('කා ක', { 'ක': ink }), ['ා']);
+  assert.deepEqual(missingChars('කො', { 'ක': ink, 'ෙ': ink, 'ා': ink }), []);
+  assert.deepEqual(missingChars('කො', { 'ක': ink, 'ෙ': ink }), ['ො']);
+  assert.deepEqual(missingChars('ක\u200dක', { 'ක': ink }), []);
+  const plan = sheetPlan({ 'අ': ink });
+  assert.equal(plan.length, SAMPLE_LINES.length);
+  assert.ok(plan.every((p) => p.text && Array.isArray(p.missing)));
+  assert.equal(showable('ා'), '\u25ccා'); assert.equal(showable('ක'), 'ක');
 });
 for (const [name, fn] of asyncT) { try { await fn(); n++; console.log('ok  ' + name); } finally { globalThis.fetch = realFetch; } }
 

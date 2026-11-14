@@ -16,6 +16,7 @@
 import { buildTrueTypeFont, cleanContour, postScriptName } from './ttfWriter.js';
 import { resolveLigatures, buildGSUB, injectTable } from './gsubWriter.js';
 import { loadMeta, metaToNames } from './fontMeta.js';
+import { loadSpacing, getSpacing } from './spacing.js';
 import { buildGPOS, buildGDEF, isMarkCode, SIGNS_POST, SIGNS_PRE } from './gposWriter.js';
 import { FEATURE_FLAGS } from './featureFlags.js';
 import { strokeToContours, normalizeWinding } from './strokeOutline.js';
@@ -88,6 +89,7 @@ function notdefContours() {
  */
 export function buildFontModel({ fontName, metrics, glyphs }) {
   const meta = loadMeta();
+  const spacingMap = loadSpacing();
   const baselineY = metrics.baseline;
   const ascender  = Math.round((metrics.baseline - metrics.ascender) * SCALE);
   const descender = -Math.round((metrics.descender - metrics.baseline) * SCALE);
@@ -114,8 +116,9 @@ export function buildFontModel({ fontName, metrics, glyphs }) {
     // Vowel signs that sit beside a letter get a tight bearing on the side that touches it.
     const cp0 = char.length === 1 ? char.codePointAt(0) : null;
     const post = cp0 != null && SIGNS_POST.has(cp0), pre = cp0 != null && SIGNS_PRE.has(cp0);
-    const lsbU = post ? SIGN_TIGHT : (pre ? SIGN_LOOSE : SIDE_BEARING);
-    const rsbU = post ? SIGN_LOOSE : (pre ? SIGN_TIGHT : SIDE_BEARING);
+    const adj = getSpacing(spacingMap, char);   // manual per-glyph extra bearings
+    const lsbU = Math.max(0, (post ? SIGN_TIGHT : (pre ? SIGN_LOOSE : SIDE_BEARING)) + adj.l);
+    const rsbU = Math.max(0, (post ? SIGN_LOOSE : (pre ? SIGN_TIGHT : SIDE_BEARING)) + adj.r);
     const dx = lsbU - minX;
     contours = contours.map(c => cleanContour(c.map(p => ({ x: p.x + dx, y: p.y })))).filter(Boolean);
     if (!contours.length) return;
@@ -240,6 +243,22 @@ export async function downloadWOFF(fontName, metrics, glyphs) {
   saveBytes(await toWOFF(bytes), `${fontName}.woff`, 'font/woff');
   logPua(puaMap);
   return compiledCount;
+}
+
+/** Renders a typing-test sheet with the freshly compiled font and downloads it as a PNG. @returns {Promise<number>} lines drawn */
+export async function downloadTestSheet(fontName, metrics, glyphs) {
+  const { bytes, puaMap } = compileTrueTypeFont({ fontName, metrics, glyphs });
+  const { sheetPlan, drawSheet } = await import('./testSheet.js');
+  const family = `KRTDSheet${Date.now()}`;
+  const face = new FontFace(family, bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength));
+  await face.load();
+  document.fonts.add(face);
+  const plan = sheetPlan(glyphs);
+  const canvas = drawSheet(document.createElement('canvas'), { family, fontName, glyphs, plan });
+  const blob = await new Promise((res) => canvas.toBlob(res, 'image/png'));
+  saveBytes(new Uint8Array(await blob.arrayBuffer()), `${fontName}-typing-test.png`, 'image/png');
+  logPua(puaMap);
+  return plan.length;
 }
 
 /**
