@@ -1,6 +1,7 @@
 import React, { useId } from 'react';
 import GlyphInspector from './GlyphInspector.jsx';
 import CoverageCard from './CoverageCard.jsx';
+import QualityCard from './QualityCard.jsx';
 import { Sliders, RotateCcw, UploadCloud, DownloadCloud, Download, Upload, FileType2, History, FileText, Brain } from 'lucide-react';
 import { METRIC_LABELS } from '../../utils/glyphData.js';
 
@@ -29,6 +30,7 @@ export default function MetricsEngine({
         {/* Glyph Inspector — live analytics for the currently selected character */}
       <GlyphInspector selectedChar={selectedChar} glyphs={glyphs} T={T}/>
       <CoverageCard glyphs={glyphs} selectedChar={selectedChar} onSelectChar={onSelectChar} T={T}/>
+      <QualityCard fontName={fontName} metrics={metrics} glyphs={glyphs} onSelectChar={onSelectChar} T={T}/>
 
       <div className={`flex items-center justify-between pb-2 mb-3 border-b ${T.divider}`}>
           <h2 className={`text-[10px] font-bold uppercase tracking-widest flex items-center gap-1.5 ${T.muted}`}>

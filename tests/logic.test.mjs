@@ -20,6 +20,7 @@ import { buildFontModel } from '../src/utils/fontCompiler.js';
 import * as BP from '../src/utils/brushPresets.js';
 import { computeKerning, computeMarkAttachments, buildGPOS, buildGDEF, inkProfile } from '../src/utils/gposWriter.js';
 import { coverageReport, PRIORITY, hasInk } from '../src/utils/coverage.js';
+import { qualityReport } from '../src/utils/fontQuality.js';
 import { toWOFF } from '../src/utils/woffWriter.js';
 import { resolveLigatures, buildGSUB, injectTable, sequenceVariants } from '../src/utils/gsubWriter.js';
 import { buildTrueTypeFont, signedArea, cleanContour, postScriptName } from '../src/utils/ttfWriter.js';
@@ -596,6 +597,20 @@ t('fontCompiler: spacing vowel signs get tight bearings and are not kerned', () 
   const [aL, aR] = xs(by(0x0dcf)); assert.equal(Math.round(aL), 15 + 0); assert.equal(by(0x0dcf).advance, Math.max(110, Math.round(aR) + 45));
   const [eL, eR] = xs(by(0x0dd9)); assert.equal(Math.round(eL), 45); assert.equal(by(0x0dd9).advance, Math.max(110, Math.round(eR) + 15));
   const [kL] = xs(by(0x0d9a)); assert.equal(Math.round(kL), 60);
+});
+t('fontQuality: errors, ligature parts, bounds, core coverage, clean pass', () => {
+  const line = (x1, y1, x2, y2) => { const a = []; for (let i = 0; i <= 8; i++) a.push({ x: x1 + (x2 - x1) * i / 8, y: y1 + (y2 - y1) * i / 8, isEraser: false, strokeWidth: 14 }); return a; };
+  const metrics = { baseline: 400, ascender: 100, descender: 480, xHeight: 200, capHeight: 120 };
+  const none = qualityReport({ fontName: 'Q', metrics, glyphs: {} });
+  assert.equal(none.ok, false); assert.equal(none.issues[0].code, 'no-glyphs');
+  const g = { 'ක': [line(100, 200, 250, 350)], 'ක්ෂ': [line(80, 150, 400, 350)], 'ඔ': [line(100, -400, 250, 350)] };
+  const r = qualityReport({ fontName: 'Q', metrics, glyphs: g });
+  const code = (c) => r.issues.find((i) => i.code === c);
+  assert.ok(code('lig-missing-parts').chars.includes('්') && code('lig-missing-parts').chars.includes('ෂ'));
+  assert.ok(code('out-of-bounds').chars.includes('ඔ'));
+  assert.ok(code('core-missing'));
+  assert.ok(r.counts.warn >= 3);
+  assert.ok(!code('skipped'));
 });
 for (const [name, fn] of asyncT) { try { await fn(); n++; console.log('ok  ' + name); } finally { globalThis.fetch = realFetch; } }
 

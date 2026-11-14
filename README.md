@@ -484,3 +484,8 @@ Open with the 🤖 button (bottom-right) or **Alt+A**.
 
 - **Spacing vowel signs** (ා ැ ෑ ෘ ෟ ං ඃ after the letter; ෙ ේ ෛ before it): they now get a tight bearing on the side that touches the letter (15 units) and a normal one on the other side, with a minimum advance of 110. They are excluded from optical kerning so the tight fit is never undone. Verified in Chromium: "කා" trails the letter closely, "කෙ" reorders ෙ in front of ක with the same tight gap. ො / ෝ are built by the shaper from ෙ + ා (+ ්) when you have not drawn them as whole glyphs.
 - **Coverage card** (Metrics panel): drawn / total, progress bar, readiness level (starting / partial / usable / complete), per-section counts and an "ඊළඟට අඳින්න" list of the 8 most everyday missing letters — click one to jump to it. Logic in `src/utils/coverage.js` (tested).
+
+## v5.2.0 — Export check
+
+- **EXPORT CHECK** card (Metrics panel → "Run check"): runs the same font build the exporter uses and lists problems in plain Sinhala: nothing drawn, glyphs that would be skipped, ligatures that can never auto-form because a component letter is missing (e.g. ක්ෂ without ් or ෂ), glyphs far outside the ascender/descender lines, dot-sized glyphs, very complex or very wide glyphs, missing core letters and missing common pili. Each listed letter is clickable to jump to it. Logic: `src/utils/fontQuality.js` (loaded on demand, tested).
+- Text Studio already renders with the compiled font, so typed Sinhala there goes through the same GSUB/GPOS shaping as the exported file.
