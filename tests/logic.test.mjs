@@ -16,8 +16,10 @@ import handler from '../api/agent.js';
 import { configuredProviders } from '../api/_providers.js';
 import { strokeToContours, strokeToPolygons, normalizeWinding, centerlineSamples } from '../src/utils/strokeOutline.js';
 import * as G from '../src/utils/guideMath.js';
+import { buildFontModel } from '../src/utils/fontCompiler.js';
 import * as BP from '../src/utils/brushPresets.js';
 import { computeKerning, computeMarkAttachments, buildGPOS, buildGDEF, inkProfile } from '../src/utils/gposWriter.js';
+import { coverageReport, PRIORITY, hasInk } from '../src/utils/coverage.js';
 import { toWOFF } from '../src/utils/woffWriter.js';
 import { resolveLigatures, buildGSUB, injectTable, sequenceVariants } from '../src/utils/gsubWriter.js';
 import { buildTrueTypeFont, signedArea, cleanContour, postScriptName } from '../src/utils/ttfWriter.js';
@@ -561,6 +563,39 @@ t('gposWriter: optical kerning, mark attachment anchors, GPOS/GDEF structure', (
   assert.equal(new DataView(gd.buffer, gd.byteOffset).getUint16(4 - 2), 0);
   assert.equal(buildGPOS(glyphs.slice(0, 2)), null);                      // single glyph: nothing to position
   assert.equal(buildGDEF(glyphs.slice(0, 4)), null);                      // no marks → no GDEF
+});
+t('coverage: counts, split-vowel composition, next-to-draw priority, levels', () => {
+  const ink = [[{ x: 10, y: 10, isEraser: false }, { x: 50, y: 50, isEraser: false }]];
+  const erase = [[{ x: 10, y: 10, isEraser: true }]];
+  assert.ok(hasInk(ink)); assert.ok(!hasInk(erase)); assert.ok(!hasInk([])); assert.ok(!hasInk(undefined));
+  const empty = coverageReport({});
+  assert.equal(empty.done, 0); assert.equal(empty.percent, 0); assert.equal(empty.level, 'starting');
+  assert.equal(empty.next[0], 'ක');                       // most everyday letter first
+  assert.equal(empty.next.length, 8);
+  const g = { 'ක': ink, 'ෙ': ink, 'ා': ink, 'ග': erase };
+  const r = coverageReport(g);
+  assert.equal(r.done, 3 + 1);                             // ක ෙ ා + ො built from parts
+  const pill = r.rows.find((x) => x.title.startsWith('Pillam'));
+  assert.deepEqual(pill.viaParts, ['ො']);
+  assert.ok(!pill.missing.includes('ො'));
+  assert.ok(r.next.includes('ත') && !r.next.includes('ක'));
+  assert.ok(r.coreMissing.length > 0 && r.level === 'starting');
+  const full = {}; for (const c of PRIORITY) full[c] = ink;
+  const fr = coverageReport(full);
+  assert.equal(fr.coreMissing.length, 0);
+  assert.ok(['usable', 'complete'].includes(fr.level));
+  assert.ok(fr.percent >= 95 || fr.level === 'usable');
+});
+t('fontCompiler: spacing vowel signs get tight bearings and are not kerned', () => {
+  const line = (x1, y1, x2, y2) => { const a = []; for (let i = 0; i <= 8; i++) a.push({ x: x1 + (x2 - x1) * i / 8, y: y1 + (y2 - y1) * i / 8, isEraser: false, strokeWidth: 14 }); return a; };
+  const metrics = { baseline: 400, ascender: 100, descender: 480, xHeight: 200, capHeight: 120 };
+  const { model } = buildFontModel({ fontName: 'S', metrics, glyphs: {
+    'ක': [line(100, 200, 250, 200), line(100, 200, 100, 380)], 'ා': [line(300, 200, 300, 380)], 'ෙ': [line(300, 200, 300, 380)] } });
+  const by = (u) => model.glyphs.find((g) => g.unicode === u);
+  const xs = (g) => { const v = g.contours.flat().map((p) => p.x); return [Math.min(...v), Math.max(...v)]; };
+  const [aL, aR] = xs(by(0x0dcf)); assert.equal(Math.round(aL), 15 + 0); assert.equal(by(0x0dcf).advance, Math.max(110, Math.round(aR) + 45));
+  const [eL, eR] = xs(by(0x0dd9)); assert.equal(Math.round(eL), 45); assert.equal(by(0x0dd9).advance, Math.max(110, Math.round(eR) + 15));
+  const [kL] = xs(by(0x0d9a)); assert.equal(Math.round(kL), 60);
 });
 for (const [name, fn] of asyncT) { try { await fn(); n++; console.log('ok  ' + name); } finally { globalThis.fetch = realFetch; } }
 

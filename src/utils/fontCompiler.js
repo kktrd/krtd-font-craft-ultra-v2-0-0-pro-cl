@@ -15,7 +15,7 @@
  */
 import { buildTrueTypeFont, cleanContour, postScriptName } from './ttfWriter.js';
 import { resolveLigatures, buildGSUB, injectTable } from './gsubWriter.js';
-import { buildGPOS, buildGDEF, isMarkCode } from './gposWriter.js';
+import { buildGPOS, buildGDEF, isMarkCode, SIGNS_POST, SIGNS_PRE } from './gposWriter.js';
 import { FEATURE_FLAGS } from './featureFlags.js';
 import { strokeToContours, normalizeWinding } from './strokeOutline.js';
 
@@ -68,6 +68,7 @@ function resolveGlyphCodepoint(char, puaCounterRef) {
 
 const SIDE_BEARING = 60;   // font units on each side of the drawn shape
 const MIN_ADVANCE  = 260;  // narrowest allowed glyph advance
+const SIGN_TIGHT = 15, SIGN_LOOSE = 45, SIGN_MIN_ADVANCE = 110;   // spacing vowel signs
 const SPACE_ADVANCE = 300;
 
 
@@ -113,11 +114,17 @@ export function buildFontModel({ fontName, metrics, glyphs }) {
     // set the advance from the shape's actual width.
     let minX = Infinity, maxX = -Infinity;
     contours.forEach(c => c.forEach(p => { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); }));
-    const dx = SIDE_BEARING - minX;
+    // Vowel signs that sit beside a letter get a tight bearing on the side that touches it.
+    const cp0 = char.length === 1 ? char.codePointAt(0) : null;
+    const post = cp0 != null && SIGNS_POST.has(cp0), pre = cp0 != null && SIGNS_PRE.has(cp0);
+    const lsbU = post ? SIGN_TIGHT : (pre ? SIGN_LOOSE : SIDE_BEARING);
+    const rsbU = post ? SIGN_LOOSE : (pre ? SIGN_TIGHT : SIDE_BEARING);
+    const dx = lsbU - minX;
     contours = contours.map(c => cleanContour(c.map(p => ({ x: p.x + dx, y: p.y })))).filter(Boolean);
     if (!contours.length) return;
     // Combining signs get zero advance and are attached to their base letter by GPOS.
-    const advance = char.length === 1 && isMarkCode(char.codePointAt(0)) ? 0 : Math.max(MIN_ADVANCE, Math.round((maxX - minX) + SIDE_BEARING * 2));
+    const advance = char.length === 1 && isMarkCode(char.codePointAt(0)) ? 0
+      : Math.max(post || pre ? SIGN_MIN_ADVANCE : MIN_ADVANCE, Math.round((maxX - minX) + lsbU + rsbU));
 
     let { unicode, isPUA } = FEATURE_FLAGS.ENABLE_LIGATURE_SAFE_EXPORT
       ? resolveGlyphCodepoint(char, puaCounterRef)

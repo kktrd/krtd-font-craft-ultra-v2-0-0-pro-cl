@@ -10,6 +10,11 @@ export const MARKS_ABOVE = new Set([0x0d81, 0x0dca, 0x0dd2, 0x0dd3]);
 export const MARKS_BELOW = new Set([0x0dd4, 0x0dd6]);
 export const isMarkCode = (u) => MARKS_ABOVE.has(u) || MARKS_BELOW.has(u);
 
+/** Spacing vowel signs: they keep their own advance but hug the letter they belong to. */
+export const SIGNS_POST = new Set([0x0d82, 0x0d83, 0x0dcf, 0x0dd0, 0x0dd1, 0x0dd8, 0x0df2, 0x0ddf]);   // after the letter
+export const SIGNS_PRE  = new Set([0x0dd9, 0x0dda, 0x0ddb]);                                          // drawn before the letter
+export const isSpacingSign = (u) => SIGNS_POST.has(u) || SIGNS_PRE.has(u);
+
 const KERN_MIN = 15, KERN_MAX_TIGHT = -150, KERN_MAX_LOOSE = 60, KERN_PAIR_CAP = 4000, BAND = 25;
 
 function bbox(contours) {
@@ -46,7 +51,7 @@ const median = (a) => { const s = a.slice().sort((x, y) => x - y); return s.leng
 export function computeKerning(glyphs) {
   const ids = [];
   glyphs.forEach((g, i) => {
-    if (i === 0 || g.unicode === 32 || !g.contours.length || isMarkCode(g.unicode)) return;
+    if (i === 0 || g.unicode === 32 || !g.contours.length || isMarkCode(g.unicode) || isSpacingSign(g.unicode)) return;
     ids.push(i);
   });
   if (ids.length < 2) return [];
@@ -94,7 +99,7 @@ export function computeMarkAttachments(glyphs) {
   const GAP = 20;
   const bases = [];
   glyphs.forEach((g, gid) => {
-    if (gid === 0 || g.unicode === 32 || isMarkCode(g.unicode) || !g.contours.length) return;
+    if (gid === 0 || g.unicode === 32 || isMarkCode(g.unicode) || isSpacingSign(g.unicode) || !g.contours.length) return;
     const b = bbox(g.contours);
     if (!b) return;
     const cx = Math.round((b.x0 + b.x1) / 2);

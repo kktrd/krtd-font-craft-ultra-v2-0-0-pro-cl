@@ -479,3 +479,8 @@ Open with the 🤖 button (bottom-right) or **Alt+A**.
 - GDEF classifies letters as bases and these signs as marks so shapers treat them correctly.
 - Not covered: spacing vowel signs placed beside the letter (ා, ෙ, ො …) and pre-base reordering still depend on the shaper plus your own drawing/advance; mark-to-mark stacking is not implemented.
 - Verified with fontTools (table parse) and Chromium/HarfBuzz (rendered ි / ු merge onto the base letter instead of trailing it).
+
+## v5.1.0 — Spacing vowel signs + Coverage report
+
+- **Spacing vowel signs** (ා ැ ෑ ෘ ෟ ං ඃ after the letter; ෙ ේ ෛ before it): they now get a tight bearing on the side that touches the letter (15 units) and a normal one on the other side, with a minimum advance of 110. They are excluded from optical kerning so the tight fit is never undone. Verified in Chromium: "කා" trails the letter closely, "කෙ" reorders ෙ in front of ක with the same tight gap. ො / ෝ are built by the shaper from ෙ + ා (+ ්) when you have not drawn them as whole glyphs.
+- **Coverage card** (Metrics panel): drawn / total, progress bar, readiness level (starting / partial / usable / complete), per-section counts and an "ඊළඟට අඳින්න" list of the 8 most everyday missing letters — click one to jump to it. Logic in `src/utils/coverage.js` (tested).

@@ -509,6 +509,7 @@ function AppInner() {
     onCompileTTF: compileTTF,
     onCompileOTF: compileOTF,
     onCompileWOFF: compileWOFF,
+    onSelectChar: setSelectedChar,
     onExportSpecimenPDF: exportSpecimenPDF,
     onOpenHistory: openHistorySheet,
     onLearnStyleProfile: learnStyleProfile,
