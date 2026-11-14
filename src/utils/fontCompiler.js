@@ -223,6 +223,15 @@ export async function downloadOTF(fontName, metrics, glyphs) {
   return compiledCount;
 }
 
+/** Compiles a TrueType font, packs it as WOFF (web font) and downloads <name>.woff. @returns {Promise<number>} glyph count */
+export async function downloadWOFF(fontName, metrics, glyphs) {
+  const { bytes, compiledCount, puaMap } = compileTrueTypeFont({ fontName, metrics, glyphs });
+  const { toWOFF } = await import('./woffWriter.js');
+  saveBytes(await toWOFF(bytes), `${fontName}.woff`, 'font/woff');
+  logPua(puaMap);
+  return compiledCount;
+}
+
 /**
  * Compiles to a base64 `data:font/ttf;base64,...` URL (live @font-face hot-reload preview).
  * @returns {{ dataUrl: string, compiledCount: number }}

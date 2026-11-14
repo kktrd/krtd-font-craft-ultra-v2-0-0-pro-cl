@@ -401,6 +401,19 @@ function AppInner() {
     }
   };
 
+  const compileWOFF = async () => {
+    setCloudLoading(true);
+    try {
+      const { downloadWOFF } = await import('./utils/fontCompiler.js');
+      const count = await downloadWOFF(fontName, metrics, glyphs);
+      toast(`🎉 "${fontName}.woff" (web font) — ${count} glyphs compiled!`, 'success', 6000);
+    } catch (err) {
+      toast(`❌ WOFF compile error: ${err.message}`, 'error');
+    } finally {
+      setCloudLoading(false);
+    }
+  };
+
   const compileOTF = async () => {
     setCloudLoading(true);
     try {
@@ -495,6 +508,7 @@ function AppInner() {
     onCompileSVG: compileSVG,
     onCompileTTF: compileTTF,
     onCompileOTF: compileOTF,
+    onCompileWOFF: compileWOFF,
     onExportSpecimenPDF: exportSpecimenPDF,
     onOpenHistory: openHistorySheet,
     onLearnStyleProfile: learnStyleProfile,

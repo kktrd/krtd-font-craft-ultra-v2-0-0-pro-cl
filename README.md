@@ -464,3 +464,9 @@ Open with the 🤖 button (bottom-right) or **Alt+A**.
 - `src/utils/gsubWriter.js` writes a `GSUB` table (LigatureSubst, features `ccmp` + `liga`, scripts `DFLT` + `sinh`) and works for both TTF and OTF. Sequences are registered with and without ZWJ after the virama.
 - A ligature is only emitted if every component character is also drawn in the font (e.g. ක, ්, ෂ for ක්ෂ). A zero-width ZWJ glyph is added automatically.
 - Verified with fontTools (GSUB parse) and Chromium/HarfBuzz shaping (typed sequence renders the same width as the ligature glyph; without GSUB it does not). Pili positioning / GPOS mark placement are still not implemented.
+
+## v4.9.0 — WOFF web-font export
+
+- New **Export WOFF (web font)** button (Metrics panel). Packs the same real TrueType font (incl. GSUB ligatures) into WOFF 1.0 with per-table zlib compression (`src/utils/woffWriter.js`, uses the browser's built-in `CompressionStream`, no extra dependency).
+- Typically ~4× smaller than the TTF; use it in `@font-face` on websites.
+- Verified: lossless round-trip test of every table, and fontTools opens the result.

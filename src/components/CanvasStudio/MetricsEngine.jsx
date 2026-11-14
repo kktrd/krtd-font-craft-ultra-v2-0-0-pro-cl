@@ -16,7 +16,7 @@ export default function MetricsEngine({
   fontName, setFontName,
   onPushCloud, onPullCloud,
   onExportJSON, onImportJSON,
-  onCompileSVG, onCompileTTF, onCompileOTF, onOpenHistory, onExportSpecimenPDF,
+  onCompileSVG, onCompileTTF, onCompileOTF, onCompileWOFF, onOpenHistory, onExportSpecimenPDF,
   onLearnStyleProfile, styleProfile, savedLabel,
   selectedChar, glyphs, onExportAllPNGs,
   T,
@@ -141,6 +141,12 @@ export default function MetricsEngine({
             <FileType2 className="w-3.5 h-3.5" aria-hidden="true" /> Export OTF (OpenType)
           </button>
         )}
+        {onCompileWOFF && (
+          <button onClick={onCompileWOFF}
+            className={`w-full py-2.5 rounded-xl text-[10px] font-bold flex items-center justify-center gap-2 border transition ${T.accentBg}`}>
+            <FileType2 className="w-3.5 h-3.5" aria-hidden="true" /> Export WOFF (web font)
+          </button>
+        )}
         <button onClick={onExportSpecimenPDF}
           className={`w-full py-2.5 rounded-xl text-[10px] font-bold flex items-center justify-center gap-2 border transition ${T.accentBg}`}>
           <FileText className="w-3.5 h-3.5" aria-hidden="true" /> Export Specimen Sheet (PDF)
@@ -154,7 +160,7 @@ export default function MetricsEngine({
           <Download className="w-3.5 h-3.5" aria-hidden="true" /> Export SVG Font (legacy)
         </button>
         <p className="text-[8px] opacity-60 text-center px-2">
-          TTF = real TrueType font (works everywhere). OTF = OpenType (CFF) version. PDF = showcase sheet for clients. SVG = preview outline.
+          TTF = real TrueType font (works everywhere). OTF = OpenType (CFF) version. WOFF = compressed font for websites. PDF = showcase sheet for clients. SVG = preview outline.
         </p>
       </div>
     </div>

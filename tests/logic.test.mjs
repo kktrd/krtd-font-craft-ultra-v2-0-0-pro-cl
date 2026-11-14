@@ -17,6 +17,7 @@ import { configuredProviders } from '../api/_providers.js';
 import { strokeToContours, strokeToPolygons, normalizeWinding, centerlineSamples } from '../src/utils/strokeOutline.js';
 import * as G from '../src/utils/guideMath.js';
 import * as BP from '../src/utils/brushPresets.js';
+import { toWOFF } from '../src/utils/woffWriter.js';
 import { resolveLigatures, buildGSUB, injectTable, sequenceVariants } from '../src/utils/gsubWriter.js';
 import { buildTrueTypeFont, signedArea, cleanContour, postScriptName } from '../src/utils/ttfWriter.js';
 import { getGuestOwner, ownerIdFor, isGuestOwner } from '../src/utils/ownerId.js';
@@ -498,6 +499,30 @@ t('gsubWriter: ligature resolution, GSUB structure, table injection keeps checks
   assert.ok(found);
   assert.equal(sum(0, out.length), 0xb1b0afba);                 // whole-file checksum rule
 });
+asyncT.push(['woffWriter: valid WOFF 1.0 container, lossless round-trip of every table', async () => {
+  const sq = [{ x: 0, y: 0 }, { x: 0, y: 100 }, { x: 100, y: 100 }, { x: 100, y: 0 }];
+  const ttf = buildTrueTypeFont({ familyName: 'W', styleName: 'Regular', unitsPerEm: 1000, ascender: 800, descender: -200,
+    names: { version: 'Version 1.000' }, glyphs: [{ name: '.notdef', unicode: null, advance: 500, contours: [sq] }, { name: 'a', unicode: 97, advance: 500, contours: [sq] }] });
+  const w = await toWOFF(ttf);
+  const dv = new DataView(w.buffer, w.byteOffset, w.byteLength);
+  assert.equal(dv.getUint32(0), 0x774f4646);
+  assert.equal(dv.getUint32(4), 0x00010000);
+  assert.equal(dv.getUint32(8), w.length);
+  const n = dv.getUint16(12);
+  const sd = new DataView(ttf.buffer, ttf.byteOffset, ttf.byteLength);
+  assert.equal(n, sd.getUint16(4));
+  const orig = {};
+  for (let i = 0; i < n; i++) { const o = 12 + i * 16; orig[String.fromCharCode(ttf[o], ttf[o + 1], ttf[o + 2], ttf[o + 3])] = ttf.slice(sd.getUint32(o + 8), sd.getUint32(o + 8) + sd.getUint32(o + 12)); }
+  const { inflateSync } = await import('node:zlib');
+  for (let i = 0; i < n; i++) {
+    const o = 44 + i * 20, tag = String.fromCharCode(w[o], w[o + 1], w[o + 2], w[o + 3]);
+    const off = dv.getUint32(o + 4), cl = dv.getUint32(o + 8), ol = dv.getUint32(o + 12);
+    assert.equal(off % 4, 0);
+    const raw = w.slice(off, off + cl);
+    const back = cl < ol ? new Uint8Array(inflateSync(raw)) : raw;
+    assert.deepEqual(Buffer.from(back), Buffer.from(orig[tag]), tag);
+  }
+}]);
 for (const [name, fn] of asyncT) { try { await fn(); n++; console.log('ok  ' + name); } finally { globalThis.fetch = realFetch; } }
 
 console.log(`\n${n} test groups passed`);
