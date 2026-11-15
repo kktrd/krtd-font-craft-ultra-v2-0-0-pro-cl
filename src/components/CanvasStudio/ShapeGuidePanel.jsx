@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Shapes, RotateCcw, EyeOff, Wand2, ChevronDown } from 'lucide-react';
+import { loadAcc, saveOpen, isOpen } from '../../utils/uiState.js';
 import { GUIDE_LIMITS, GUIDE_STYLES } from '../../utils/guideMath.js';
 
 const ADJ_ROWS = [
@@ -35,6 +36,8 @@ export default function ShapeGuidePanel({
   );
   const pct = score ? score.score : 0;
   const [adjOpen, setAdjOpen] = useState(false);
+  const [open, setOpen] = useState(() => isOpen(loadAcc(), 'shapeguide', true));
+  const toggle = () => { const n = !open; setOpen(n); saveOpen('shapeguide', n); };
   return (
     <div className="p-2.5 rounded-xl border bg-sky-500/10 border-sky-500/30 space-y-2.5" role="group" aria-label="Shape guide">
       <div className="flex items-center gap-2">
@@ -42,10 +45,13 @@ export default function ShapeGuidePanel({
         <span className="text-[10px] font-bold text-sky-500 flex-1">
           Shape Guide <span className="font-sinhala text-sm">{char}</span> — හිස් සම්මත හැඩය (save වෙන්නේ නැහැ)
         </span>
+        <button onClick={toggle} aria-expanded={open} aria-label={open ? 'Collapse shape guide' : 'Expand shape guide'} className={`p-1.5 rounded-lg border ${T.btnGhost}`}>
+          <ChevronDown className={`w-3.5 h-3.5 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" /></button>
         <button onClick={onHide} aria-label="Hide shape guide" className={`p-1.5 rounded-lg border ${T.btnGhost}`}>
           <EyeOff className="w-3.5 h-3.5" aria-hidden="true" /></button>
       </div>
 
+      {open && (<>
       {supported && !fontLoaded && (
         <p className="text-[10px] text-amber-500 font-bold" role="status">
           මේ style එකේ font එක load වුණේ නැහැ (internet?) — වෙනත් font එකකින් පෙන්වනවා. වෙන style එකක් තෝරන්න.
@@ -113,6 +119,7 @@ export default function ShapeGuidePanel({
       )}
 
       {settings.compare && children}
+      </>)}
     </div>
   );
 }
