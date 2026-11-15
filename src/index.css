@@ -232,3 +232,6 @@ body {
 @media (max-width: 1023px) {
   .agent-sheet { height: 85vh; height: 85dvh; }
 }
+
+/* Short landscape phones: a sticky canvas would fill the whole screen — let it scroll normally. */
+@media (max-height: 520px) and (max-width: 1023px) { .canvas-top { position: static !important; } }

@@ -176,9 +176,12 @@ export default function CanvasWorkspace({
     if (!root || typeof window === 'undefined' || !window.matchMedia) return undefined;
     const mq = window.matchMedia('(min-width: 1024px)');
     const measure = () => {
-      if (!mq.matches) { setFitH(Infinity); return; }
       const top = topRef.current;
       const chrome = top ? top.offsetHeight - (containerRef.current ? containerRef.current.offsetHeight : 0) : 150;
+      if (!mq.matches) {                       // phones: sticky block never takes more than ~60% of the screen
+        setFitH(Math.max(200, Math.floor(window.innerHeight - chrome - 230)));
+        return;
+      }
       setFitH(fitCanvasHeight(root.clientHeight, chrome));
     };
     measure();
@@ -186,7 +189,9 @@ export default function CanvasWorkspace({
     ro.observe(root);
     if (topRef.current) ro.observe(topRef.current);
     mq.addEventListener?.('change', measure);
-    return () => { ro.disconnect(); mq.removeEventListener?.('change', measure); };
+    window.addEventListener('resize', measure);
+    window.addEventListener('orientationchange', measure);
+    return () => { ro.disconnect(); mq.removeEventListener?.('change', measure); window.removeEventListener('resize', measure); window.removeEventListener('orientationchange', measure); };
   }, []);
 
   const baseScale   = Math.min(1, (containerW - 4) / CS, (fitH - 4) / CS);
@@ -648,7 +653,7 @@ export default function CanvasWorkspace({
     <div ref={rootRef} className="flex flex-col gap-3 lg:h-full lg:min-h-0">
 
       {/* Drawing area: stays in view (sticky on phones, fixed on desktop) while the accordions below scroll */}
-      <div ref={topRef} className={`canvas-top sticky z-20 lg:static lg:z-auto space-y-2.5 pb-2 ${T.solid}`} style={{ top:'var(--header-h, 0px)' }}>
+      <div ref={topRef} className={`canvas-top sticky z-20 lg:static lg:z-auto space-y-2.5 pb-2 ${T.solid}`} style={{ top: 0 }}>
       {/* Title row */}
       <div className={`flex flex-wrap items-center justify-between gap-2 pb-3 border-b ${T.divider}`}>
         <div>
