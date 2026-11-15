@@ -522,3 +522,8 @@ Open with the 🤖 button (bottom-right) or **Alt+A**.
 - Export: typing `C + ් + ZWJ + ර/ය` (e.g. ක්‍ර) is turned by the GSUB table into the base letter followed by your tail glyph; the tail gets a tight left bearing and is excluded from kerning. Requires ් and ර / ය to be drawn too (the Export check tells you).
 - Verified in Chromium: "ක්‍ර" renders as ක + tail (66 px) instead of ක + ර (84 px). Atlas now has 77 slots.
 - Limit: the tail is placed after the base's advance, not attached below it; draw it at the height you want it to appear.
+
+## v5.8.1 — Help entries + OTF validation
+
+- Help panel: new entries 14–18 (brush presets, coverage + export check, spacing + font info, export formats, install & test steps).
+- OTF path check: GSUB/GPOS/GDEF tables injected by `injectTable` into a real CFF (`OTTO`) font open in fontTools and shape identically to the TTF in Chromium. (The CFF part itself still comes from opentype.js 1.x; that library could not be installed in the build sandbox, so the end-to-end OTF build is covered by CI's production build, not by a local run.)

@@ -613,6 +613,11 @@ function AppInner() {
                   ['11','Stroke Prediction (P)','Draw කරද්දී, pen එකේ trajectory එකෙන් ඉදිරි path එක ghost line එකක් විදිහට preview කරනවා — actual stroke එකට effect කරන්නේ නෑ.'],
                   ['12','Shape Guide (H)','Canvas toolbar එකේ Shape බොත්තම: තෝරපු අකුරේ හිස් සම්මත හැඩය පෙන්වනවා — ඒක මත ඇඳලා customize කරන්න. Style 5ක්, 1·2·3 order, Metrics snap, Match my style, Accuracy, Compare. Save / export වෙන්නේ නෑ. Eraser එකෙන් guide එක වැසෙනවා නම් "Front layer" ඔන් කරන්න.'],
                   ['13','KRTD Agent (Alt+A)','දකුණු පහළ 🤖 බොත්තම. ඔයාගේ project එක analyze කරලා health score, ඊළඟට අඳින්න ඕන අකුරු (predicted path), auto-fix, Autopilot workflow සහ chat commands (ක, fix all, save, export ttf) දෙනවා. Login වුණාම ඕනෑම ප්‍රශ්නයක් AI සහායෙන් අහන්න පුළුවන්.'],
+                  ['14','Brush Presets','Canvas Studio → BRUSH PRESETS: pen nib / brush / monoline 10ක් + ඔයාගේම brushes 8ක් save කරන්න. Shortcuts: Alt+1…0, , සහ . (පෙර/ඊළඟ), [ ] size.'],
+                  ['15','Coverage + Export Check','Metrics panel: COVERAGE (ඇඳපු අකුරු %, ඊළඟට අඳින්න ඕන අකුරු) සහ EXPORT CHECK (ligature component අඩු, ascender/descender ඉක්මවීම, මූලික අකුරු/පිල්ලම් අඩු). අකුරු එබුවාම කෙලින්ම ඒකට යනවා.'],
+                  ['16','Spacing + Font Info','SPACING: තෝරපු අකුරට වම/දකුණ පරතරය, "Auto-space all". FONT INFO: designer, license, version, embedding. Cloud Push/Pull සහ JSON backup එකත් එක්ක යනවා.'],
+                  ['17','Export Formats','TTF (installable), OTF, WOFF (website). ක්ෂ, ශ්‍රී, ක්‍ර (්‍ර/්‍ය slots) type කරද්දි auto වැටෙනවා; කෙටි pili (ි ු …) අකුරට උඩ/යට auto ඇලෙනවා; kerning auto.'],
+                  ['18','Install & Test','Download කරපු .ttf එක: Windows → දෙවරක් click → Install. Mac → Font Book වලට drag. Canva → Brand Kit → Fonts → Upload. ඊට පස්සේ "Typing Test Sheet (PNG)" එක සහ Word එකේ "ක්ෂණික ප්‍රකාශය" type කරලා බලන්න.'],
                 ].map(([n, t, d]) => (
                   <div key={n} className={`p-3 rounded-xl border flex gap-3 ${T.sub}`}>
                     <span className={`font-black flex-shrink-0 text-sm ${T.accent}`}>{n}</span>
