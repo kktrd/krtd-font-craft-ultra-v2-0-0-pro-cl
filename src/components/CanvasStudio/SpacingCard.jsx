@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { MoveHorizontal, RotateCcw, Wand2 } from 'lucide-react';
 import { SPACING_LIMITS, loadSpacing, saveSpacing, setSpacing, getSpacing } from '../../utils/spacing.js';
 import { SETTINGS_EVENT, notifyConfigChanged } from '../../utils/settingsSync.js';
+import Collapsible from '../Shared/Collapsible.jsx';
 
 /** Extra left / right spacing for the selected letter; applied when the font is exported / previewed. */
 export default function SpacingCard({ selectedChar, fontName, metrics, glyphs, T }) {
@@ -29,21 +30,21 @@ export default function SpacingCard({ selectedChar, fontName, metrics, glyphs, T
   };
   const set = (patch) => setMap((m) => setSpacing(m, selectedChar, patch));
   const row = (k, label) => (
-    <label className="flex items-center gap-2">
-      <span className="w-24 flex-shrink-0 opacity-70">{label}</span>
+    <label className="flex items-center gap-2 text-xs">
+      <span className="w-24 flex-shrink-0 opacity-80 font-semibold">{label}</span>
       <input type="range" min={SPACING_LIMITS.min} max={SPACING_LIMITS.max} step={SPACING_LIMITS.step} value={cur[k]}
         onChange={(e) => set({ [k]: Number(e.target.value) })} aria-label={label} className="flex-1 min-w-0 accent-sky-500" />
       <span className="w-9 text-right font-mono opacity-70">{cur[k] > 0 ? `+${cur[k]}` : cur[k]}</span>
     </label>
   );
   return (
-    <div className={`p-3 rounded-xl border space-y-2 text-[10px] font-black ${T.sub}`} role="group" aria-label="Glyph spacing">
-      <div className="flex items-center gap-2">
-        <MoveHorizontal className="w-3.5 h-3.5" aria-hidden="true" />
-        <span>SPACING · පරතරය</span>
-        <span className="text-base ml-1">{selectedChar}</span>
+    <Collapsible id="spacing" title="SPACING" si="පරතරය" icon={MoveHorizontal}
+      summary={`${selectedChar} ${cur.l || cur.r ? `${cur.l}/${cur.r}` : ''}`} T={T}>
+      <div className="space-y-2 text-xs font-semibold">
+      <div className="flex items-center">
+        <span className="opacity-70">තෝරපු අකුර: <b className="text-base font-sinhala">{selectedChar}</b></span>
         <button type="button" onClick={() => set({ l: 0, r: 0 })} disabled={cur.l === 0 && cur.r === 0} aria-label="Reset spacing"
-          className="ml-auto p-1 rounded-lg border disabled:opacity-30"><RotateCcw className="w-3 h-3" aria-hidden="true" /></button>
+          className="ml-auto p-1.5 rounded-lg border disabled:opacity-30"><RotateCcw className="w-3.5 h-3.5" aria-hidden="true" /></button>
       </div>
       {row('l', 'වම (Left)')}
       {row('r', 'දකුණ (Right)')}
@@ -54,7 +55,8 @@ export default function SpacingCard({ selectedChar, fontName, metrics, glyphs, T
         <button type="button" onClick={() => { setMap(saveSpacing({})); setNote('සියල්ල reset කළා'); }} className="px-2 py-1.5 rounded-lg border opacity-80 hover:opacity-100">Clear all</button>
       </div>
       {note && <p className="text-[9px] opacity-80 font-bold" aria-live="polite">{note}</p>}
-      <p className="text-[9px] opacity-60 font-bold">Export / Text Studio preview එකට බලපායි. මේ browser එකේ පමණක් save වෙයි (cloud sync නැත).</p>
-    </div>
+      <p className="text-[11px] opacity-70 font-medium leading-snug">Export / Text Studio preview එකට බලපායි. Browser, JSON backup සහ Cloud Push එකත් සමඟ save වෙයි.</p>
+      </div>
+    </Collapsible>
   );
 }

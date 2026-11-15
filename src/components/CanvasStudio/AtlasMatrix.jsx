@@ -1,6 +1,7 @@
 import React, { useMemo, useState, memo } from 'react';
 import { Type, Search, X, Copy, Users } from 'lucide-react';
 import { GLYPH_SECTIONS } from '../../utils/glyphData.js';
+import Collapsible from '../Shared/Collapsible.jsx';
 
 function AtlasMatrix({
   selectedChar, setSelectedChar, glyphs, T, onSelect, onCopyGlyph,
@@ -90,11 +91,11 @@ function AtlasMatrix({
       {filteredSections.length === 0 && (
         <p className="text-center py-6 text-xs opacity-60" role="status">No results for &ldquo;{search}&rdquo;</p>
       )}
-      {filteredSections.map((section, si) => (
-        <div key={si} className="space-y-1.5">
-          <h3 className={`text-[9px] font-bold uppercase tracking-wider ${T.muted} opacity-60`}>
-            {section.title}
-          </h3>
+      {filteredSections.map((section, si) => {
+        const done = section.chars.filter((c) => glyphs[c]?.length).length;
+        return (
+        <Collapsible key={section.title} id={`atlas-${section.title.split(' ')[0].toLowerCase()}`} variant="flat"
+          title={section.title} summary={`${done}/${section.chars.length}`} defaultOpen={si === 0} forceOpen={!!search.trim()} T={T}>
           <div className="grid grid-cols-5 gap-2 relative" role="group" aria-label={section.title}>
             {section.chars.map((char) => {
               const isSelected  = selectedChar === char;
@@ -145,8 +146,9 @@ function AtlasMatrix({
               );
             })}
           </div>
-        </div>
-      ))}
+        </Collapsible>
+        );
+      })}
     </div>
   );
 }

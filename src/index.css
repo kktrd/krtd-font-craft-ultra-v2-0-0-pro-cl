@@ -14,7 +14,9 @@
 
   body {
     margin: 0;
-    font-family: 'DM Sans', system-ui, sans-serif;
+    font-family: 'Google Sans Flex','Google Sans','DM Sans','Noto Sans Sinhala',system-ui,-apple-system,'Segoe UI',sans-serif;
+    font-feature-settings: 'tnum' 0;
+    letter-spacing: 0.005em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overscroll-behavior: none;
@@ -59,8 +61,18 @@ input[type="range"]::-webkit-slider-thumb {
 
 /* ── Sinhala font class ─────────────────────────────────────────── */
 .font-sinhala {
-  font-family: 'Noto Sans Sinhala', serif;
+  font-family: 'Google Sans Flex','Google Sans','DM Sans','Noto Sans Sinhala',system-ui,-apple-system,'Segoe UI',sans-serif;
 }
+
+/* ── One typeface: form controls inherit it, numbers align (no separate monospace face) ── */
+button, input, select, textarea { font-family: inherit; }
+.font-mono { font-variant-numeric: tabular-nums; letter-spacing: 0; }
+
+/* ── Readability floor: nothing in the UI is smaller than 11px ─────────── */
+.text-\[8px\]  { font-size: 11px; }
+.text-\[9px\]  { font-size: 11px; }
+.text-\[10px\] { font-size: 12px; }
+.text-\[11px\] { font-size: 12.5px; }
 
 /* ── Canvas no-touch-scroll ─────────────────────────────────────── */
 .canvas-zone {
@@ -173,6 +185,13 @@ body {
 @media (min-width: 1024px) {
   .app-root   { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
   .app-scroll { flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; }
+
+  /* Canvas Studio: three columns that each fill the work area and scroll on their own,
+     so the drawing canvas (centre) never moves while the side panels are used. */
+  .studio-grid { height: calc(100vh - var(--header-h, 100px) - var(--footer-h, 44px) - 3rem); height: calc(100dvh - var(--header-h, 100px) - var(--footer-h, 44px) - 3rem); min-height: 480px; align-items: stretch; }
+  .studio-col  { height: 100%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  .studio-center { display: flex; flex-direction: column; overflow: hidden; }
+  .studio-center > * { flex: 1 1 auto; min-height: 0; }
 }
 @media (max-width: 1023px) {
   input:not([type="range"]):not([type="checkbox"]):not([type="radio"]),
@@ -197,7 +216,6 @@ body {
 .max-h-\[80vh\] { max-height: 80vh; max-height: 80dvh; }
 /* Tiny labels become readable on phones */
 @media (max-width: 640px) {
-  .text-\[9px\] { font-size: 10px; }
 }
 /* Respect users who prefer reduced motion */
 @media (prefers-reduced-motion: reduce) {

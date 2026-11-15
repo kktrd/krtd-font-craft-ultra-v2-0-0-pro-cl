@@ -71,6 +71,22 @@ function AppInner() {
   // ── UI flags ─────────────────────────────────────────────────────────────
   const [showHelp,     setShowHelp]     = useState(() => !lsGet('krtd_guide_seen'));
   const [cloudLoading, setCloudLoading] = useState(false);
+  // Header / footer heights as CSS variables: the drawing area sticks just below the header on phones,
+  // and on desktop the three studio columns fill exactly the space between header and footer.
+  useEffect(() => {
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const pairs = [['header', '--header-h'], ['footer', '--footer-h']];
+    const ros = pairs.map(([sel, name]) => {
+      const el = document.querySelector(sel);
+      if (!el) return null;
+      const set = () => document.documentElement.style.setProperty(name, `${el.offsetHeight}px`);
+      set();
+      const ro = new ResizeObserver(set);
+      ro.observe(el);
+      return ro;
+    });
+    return () => ros.forEach((r) => r && r.disconnect());
+  }, []);
   const [mobileSheet,  setMobileSheet]  = useState(null);   // 'atlas' | 'metrics'
   const [showHistory,  setShowHistory]  = useState(false);
   const [syncBanner,   setSyncBanner]   = useState(false);  // reconnect auto-sync notice
@@ -614,9 +630,9 @@ function AppInner() {
                   ['12','Shape Guide (H)','Canvas toolbar එකේ Shape බොත්තම: තෝරපු අකුරේ හිස් සම්මත හැඩය පෙන්වනවා — ඒක මත ඇඳලා customize කරන්න. Style 5ක්, 1·2·3 order, Metrics snap, Match my style, Accuracy, Compare. Save / export වෙන්නේ නෑ. Eraser එකෙන් guide එක වැසෙනවා නම් "Front layer" ඔන් කරන්න.'],
                   ['13','KRTD Agent (Alt+A)','දකුණු පහළ 🤖 බොත්තම. ඔයාගේ project එක analyze කරලා health score, ඊළඟට අඳින්න ඕන අකුරු (predicted path), auto-fix, Autopilot workflow සහ chat commands (ක, fix all, save, export ttf) දෙනවා. Login වුණාම ඕනෑම ප්‍රශ්නයක් AI සහායෙන් අහන්න පුළුවන්.'],
                   ['14','Brush Presets','Canvas Studio → BRUSH PRESETS: pen nib / brush / monoline 10ක් + ඔයාගේම brushes 8ක් save කරන්න. Shortcuts: Alt+1…0, , සහ . (පෙර/ඊළඟ), [ ] size.'],
-                  ['15','Coverage + Export Check','Check tab (දකුණු panel): COVERAGE (ඇඳපු අකුරු %, ඊළඟට අඳින්න ඕන අකුරු) සහ EXPORT CHECK (ligature component අඩු, ascender/descender ඉක්මවීම, මූලික අකුරු/පිල්ලම් අඩු). අකුරු එබුවාම කෙලින්ම ඒකට යනවා.'],
-                  ['16','Spacing + Font Info','SPACING (Metrics tab), FONT INFO (Info tab): තෝරපු අකුරට වම/දකුණ පරතරය, "Auto-space all". designer, license, version, embedding. Cloud Push/Pull සහ JSON backup එකත් එක්ක යනවා.'],
-                  ['17','Export Formats','Export tab: TTF (installable), OTF, WOFF (website). ක්ෂ, ශ්‍රී, ක්‍ර (්‍ර/්‍ය slots) type කරද්දි auto වැටෙනවා; කෙටි pili (ි ු …) අකුරට උඩ/යට auto ඇලෙනවා; kerning auto.'],
+                  ['15','Coverage + Export Check','දකුණු panel එකේ COVERAGE (ඇඳපු අකුරු %, ඊළඟට අඳින්න ඕන අකුරු) සහ EXPORT CHECK (ligature component අඩු, ascender/descender ඉක්මවීම, මූලික අකුරු/පිල්ලම් අඩු). අකුරු එබුවාම කෙලින්ම ඒකට යනවා.'],
+                  ['16','Spacing + Font Info','දකුණු panel එකේ SPACING, FONT INFO (මාතෘකාව tap කරලා expand කරන්න): තෝරපු අකුරට වම/දකුණ පරතරය, "Auto-space all". designer, license, version, embedding. Cloud Push/Pull සහ JSON backup එකත් එක්ක යනවා.'],
+                  ['17','Export Formats','උඩින්ම Export බොත්තම්: TTF (installable), OTF, WOFF (website). ක්ෂ, ශ්‍රී, ක්‍ර (්‍ර/්‍ය slots) type කරද්දි auto වැටෙනවා; කෙටි pili (ි ු …) අකුරට උඩ/යට auto ඇලෙනවා; kerning auto.'],
                   ['18','Install & Test','Download කරපු .ttf එක: Windows → දෙවරක් click → Install. Mac → Font Book වලට drag. Canva → Brand Kit → Fonts → Upload. ඊට පස්සේ "Typing Test Sheet (PNG)" එක සහ Word එකේ "ක්ෂණික ප්‍රකාශය" type කරලා බලන්න.'],
                 ].map(([n, t, d]) => (
                   <div key={n} className={`p-3 rounded-xl border flex gap-3 ${T.sub}`}>
@@ -712,13 +728,13 @@ function AppInner() {
       {activeTab === 'canvas' && (
         <ErrorBoundary T={T}>
           <main id="main-content" className="max-w-[1600px] mx-auto p-3 md:p-5 lg:p-6">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 items-start">
+            <div className="studio-grid grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-5 items-start">
 
-              <aside className={`hidden lg:block lg:col-span-3 p-4 rounded-2xl border lg:max-h-[830px] overflow-y-auto ${T.card}`}>
+              <aside className={`studio-col hidden lg:block lg:col-span-3 p-3 rounded-2xl border ${T.card}`}>
                 <AtlasMatrix selectedChar={selectedChar} setSelectedChar={setSelectedChar} glyphs={glyphs} T={T} onCopyGlyph={copyGlyph} activeEditors={collaborators.filter(c => c.id !== identity.id)}/>
               </aside>
 
-              <section className={`col-span-12 lg:col-span-6 p-3 sm:p-4 lg:p-5 min-w-0 rounded-2xl border ${T.card}`}>
+              <section className={`studio-col studio-center col-span-12 lg:col-span-6 p-3 sm:p-4 min-w-0 rounded-2xl border ${T.card}`}>
                 <CanvasWorkspace
                   theme={theme} T={T}
                   selectedChar={selectedChar}
@@ -741,7 +757,7 @@ function AppInner() {
                 />
               </section>
 
-              <aside className={`hidden lg:block lg:col-span-3 p-4 rounded-2xl border ${T.card}`}>
+              <aside className={`studio-col hidden lg:block lg:col-span-3 p-3 rounded-2xl border ${T.card}`}>
                 <MetricsEngine {...metricsProps} savedLabel={savedLabel}/>
               </aside>
             </div>

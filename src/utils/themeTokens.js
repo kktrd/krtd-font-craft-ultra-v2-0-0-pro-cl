@@ -10,6 +10,7 @@ export function getTokens(theme) {
   return {
     // Layout backgrounds
     bg:         t==='dark' ? 'bg-[#020617] text-slate-100'        : t==='comfort' ? 'bg-[#f4f1ea] text-[#3a352a]'         : 'bg-slate-50 text-slate-800',
+    solid:      t==='dark' ? 'bg-slate-900' : t==='comfort' ? 'bg-[#fdfbf7]' : 'bg-white',   // opaque surface (sticky areas)
     card:       t==='dark' ? 'bg-slate-900/60 border-slate-800/80 backdrop-blur-xl' : t==='comfort' ? 'bg-[#fdfbf7] border-[#e2d9c5] shadow-sm' : 'bg-white border-slate-200 shadow-sm',
     cardHover:  t==='dark' ? 'hover:bg-slate-800/60'              : t==='comfort' ? 'hover:bg-[#f9f6ef]'                  : 'hover:bg-slate-50',
     sub:        t==='dark' ? 'bg-slate-950/70 border-slate-900'   : t==='comfort' ? 'bg-[#f7f4ed] border-[#e6dfd3]'       : 'bg-slate-50 border-slate-200',

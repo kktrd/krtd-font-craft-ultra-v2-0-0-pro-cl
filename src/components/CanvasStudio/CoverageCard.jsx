@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { ListChecks } from 'lucide-react';
 import { coverageReport } from '../../utils/coverage.js';
+import Collapsible from '../Shared/Collapsible.jsx';
 
 const LEVELS = {
   starting: ['පටන් ගන්න', 'bg-rose-500'],
@@ -14,12 +15,8 @@ export default function CoverageCard({ glyphs, selectedChar, onSelectChar, T }) 
   const r = useMemo(() => coverageReport(glyphs || {}), [glyphs]);
   const [label, bar] = LEVELS[r.level];
   return (
-    <div className={`p-3 rounded-xl border space-y-2.5 ${T.sub}`} role="group" aria-label="Font coverage">
-      <div className="flex items-center gap-2 text-[10px] font-black">
-        <ListChecks className="w-3.5 h-3.5" aria-hidden="true" />
-        <span>COVERAGE · අකුරු ප්‍රමාණය</span>
-        <span className="ml-auto font-mono">{r.done}/{r.total} · {r.percent}%</span>
-      </div>
+    <Collapsible id="coverage" title="COVERAGE" si="අකුරු ප්‍රමාණය" icon={ListChecks} summary={`${r.done}/${r.total} · ${r.percent}%`} T={T}>
+      <div className="space-y-2.5">
       <div className="h-1.5 rounded-full bg-black/20 overflow-hidden" role="progressbar" aria-valuenow={r.percent} aria-valuemin={0} aria-valuemax={100}>
         <div className={`h-full ${bar} transition-all`} style={{ width: `${r.percent}%` }} />
       </div>
@@ -49,6 +46,7 @@ export default function CoverageCard({ glyphs, selectedChar, onSelectChar, T }) 
           ))}
         </ul>
       </details>
-    </div>
+      </div>
+    </Collapsible>
   );
 }

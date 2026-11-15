@@ -28,7 +28,8 @@ import { exportSettings, importSettings, isMissingSettingsColumn } from '../src/
 import { autoSpacing, edgeDepths } from '../src/utils/autoSpacing.js';
 import { copySpacing } from '../src/utils/settingsSync.js';
 import { isTailSequence } from '../src/utils/gposWriter.js';
-import { PANEL_TABS, nextTab, isTabId } from '../src/utils/uiTabs.js';
+import { fitCanvasHeight, MIN_CANVAS, CONTROLS_MIN } from '../src/utils/layoutFit.js';
+import { sanitizeAcc, isOpen, saveOpen, loadAcc, ACC_KEY } from '../src/utils/uiState.js';
 import { toWOFF } from '../src/utils/woffWriter.js';
 import { resolveLigatures, buildGSUB, injectTable, sequenceVariants } from '../src/utils/gsubWriter.js';
 import { buildTrueTypeFont, signedArea, cleanContour, postScriptName } from '../src/utils/ttfWriter.js';
@@ -726,15 +727,28 @@ t('rakaransaya / yansaya: tail sequences, ligature variants, tight bearing, not 
   assert.ok(lig.some((l) => l.components.length === 3 && l.glyph === model.glyphs.indexOf(tail)));
   assert.ok(!computeKerning(model.glyphs).some((p) => p.left === model.glyphs.indexOf(tail) || p.right === model.glyphs.indexOf(tail)));
 });
-t('uiTabs: keyboard navigation wraps, Home/End, unknown keys, id validation', () => {
-  const ids = PANEL_TABS.map((x) => x.id);
-  assert.deepEqual(ids, ['metrics', 'check', 'info', 'export']);
-  assert.equal(nextTab('metrics', 'ArrowRight'), 'check');
-  assert.equal(nextTab('export', 'ArrowRight'), 'metrics');
-  assert.equal(nextTab('metrics', 'ArrowLeft'), 'export');
-  assert.equal(nextTab('info', 'Home'), 'metrics'); assert.equal(nextTab('info', 'End'), 'export');
-  assert.equal(nextTab('info', 'a'), null); assert.equal(nextTab('zzz', 'ArrowRight'), 'metrics');
-  assert.ok(isTabId('check')); assert.ok(!isTabId('nope')); assert.ok(!isTabId(null));
+t('layoutFit: canvas height fits column, has floor, handles bad input', () => {
+  assert.equal(fitCanvasHeight(800, 100), 800 - 100 - CONTROLS_MIN);
+  assert.equal(fitCanvasHeight(300, 100), MIN_CANVAS);
+  assert.equal(fitCanvasHeight(0, 100), Infinity);
+  assert.equal(fitCanvasHeight(NaN, 100), Infinity);
+  assert.equal(fitCanvasHeight(700, -5), 700 - CONTROLS_MIN);
+});
+t('uiState: accordion state sanitising, defaults, independent saves', () => {
+  assert.deepEqual(sanitizeAcc(null), {}); assert.deepEqual(sanitizeAcc([true]), {});
+  assert.deepEqual(sanitizeAcc({ a: true, b: 'x', 'c<': true, d: false, ['x'.repeat(61)]: true }), { a: true, d: false });
+  const many = Object.fromEntries(Array.from({ length: 200 }, (_, i) => ['k' + i, true]));
+  assert.equal(Object.keys(sanitizeAcc(many)).length, 80);
+  assert.equal(isOpen({}, 'x', true), true); assert.equal(isOpen({ x: false }, 'x', true), false); assert.equal(isOpen(null, 'x'), false);
+  const store = {};
+  globalThis.localStorage = { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); } };
+  try {
+    saveOpen('a', true); saveOpen('b', false); saveOpen('a', false);
+    assert.deepEqual(loadAcc(), { a: false, b: false });
+    store[ACC_KEY] = '{bad json';
+    assert.deepEqual(loadAcc(), {});                               // corrupt storage never throws
+  } finally { delete globalThis.localStorage; }
+  assert.deepEqual(loadAcc(), {});                                  // no storage at all
 });
 for (const [name, fn] of asyncT) { try { await fn(); n++; console.log('ok  ' + name); } finally { globalThis.fetch = realFetch; } }
 

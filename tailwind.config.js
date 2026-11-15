@@ -5,9 +5,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['DM Sans', 'system-ui', 'sans-serif'],
-        mono: ['JetBrains Mono', 'monospace'],
-        sinhala: ['Noto Sans Sinhala', 'serif'],
+        // One UI typeface everywhere (Sinhala falls through to Noto Sans Sinhala automatically).
+        sans:    ['Google Sans Flex', 'Google Sans', 'DM Sans', 'Noto Sans Sinhala', 'system-ui', 'sans-serif'],
+        mono:    ['Google Sans Flex', 'Google Sans', 'DM Sans', 'Noto Sans Sinhala', 'system-ui', 'sans-serif'],
+        sinhala: ['Google Sans Flex', 'Google Sans', 'DM Sans', 'Noto Sans Sinhala', 'system-ui', 'sans-serif'],
       },
       colors: {
         krtd: {

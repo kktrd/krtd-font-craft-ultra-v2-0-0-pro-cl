@@ -14,6 +14,8 @@ import {
 import ShapeGuidePanel from './ShapeGuidePanel.jsx';
 import ShapeCompare from './ShapeCompare.jsx';
 import BrushPalette from './BrushPalette.jsx';
+import Collapsible from '../Shared/Collapsible.jsx';
+import { fitCanvasHeight } from '../../utils/layoutFit.js';
 import { CUSTOM_KEY, sanitizeCustom, stepPreset, BRUSH_PRESETS } from '../../utils/brushPresets.js';
 
 const GUIDE_KEY = 'krtd_shape_guide_v1';
@@ -53,6 +55,9 @@ export default function CanvasWorkspace({
   const predictCanvasRef = useRef(null);
   const guideCanvasRef   = useRef(null);
   const containerRef = useRef(null);
+  const rootRef = useRef(null);
+  const topRef = useRef(null);
+  const [fitH, setFitH] = useState(Infinity);   // max canvas height on desktop (keeps the controls visible below it)
   const contextRef   = useRef(null);
   const isDrawingRef = useRef(false);
   const strokeRef    = useRef([]);
@@ -165,7 +170,26 @@ export default function CanvasWorkspace({
     return () => ro.disconnect();
   }, []);
 
-  const baseScale   = Math.min(1, (containerW - 4) / CS);
+  // Desktop: the canvas never grows taller than the column minus room for the control accordions.
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root || typeof window === 'undefined' || !window.matchMedia) return undefined;
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const measure = () => {
+      if (!mq.matches) { setFitH(Infinity); return; }
+      const top = topRef.current;
+      const chrome = top ? top.offsetHeight - (containerRef.current ? containerRef.current.offsetHeight : 0) : 150;
+      setFitH(fitCanvasHeight(root.clientHeight, chrome));
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(root);
+    if (topRef.current) ro.observe(topRef.current);
+    mq.addEventListener?.('change', measure);
+    return () => { ro.disconnect(); mq.removeEventListener?.('change', measure); };
+  }, []);
+
+  const baseScale   = Math.min(1, (containerW - 4) / CS, (fitH - 4) / CS);
   const totalScale  = baseScale * zoomLevel;
   const displaySize = CS * totalScale;
   useEffect(() => { displaySizeRef.current = displaySize; }, [displaySize]);
@@ -621,23 +645,10 @@ export default function CanvasWorkspace({
   const MODES=['calligraphy','tapered','uniform'];
 
   return (
-    <div className="space-y-3">
+    <div ref={rootRef} className="flex flex-col gap-3 lg:h-full lg:min-h-0">
 
-      {showShortcuts && (
-        <div className={`p-3 rounded-xl border text-[10px] ${T.sub}`}>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 font-mono">
-            {[['Ctrl+Z','Undo'],['Ctrl+Y','Redo'],['E','Eraser'],['B','Brush'],
-              ['M','Metrics'],['S','Snap'],['R','Ruler'],['X','Mirror'],
-              ['G','Reference'],['H','Shape Guide'],['P','Predict'],['[ ]','Size ±'],['1-4','Zoom']].map(([k,v])=>(
-              <div key={k} className="flex items-center gap-2">
-                <kbd className={`px-1.5 py-0.5 rounded border text-[9px] font-black ${T.card}`}>{k}</kbd>
-                <span className="opacity-50">{v}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
+      {/* Drawing area: stays in view (sticky on phones, fixed on desktop) while the accordions below scroll */}
+      <div ref={topRef} className={`canvas-top sticky z-20 lg:static lg:z-auto space-y-2.5 pb-2 ${T.solid}`} style={{ top:'var(--header-h, 0px)' }}>
       {/* Title row */}
       <div className={`flex flex-wrap items-center justify-between gap-2 pb-3 border-b ${T.divider}`}>
         <div>
@@ -713,6 +724,72 @@ export default function CanvasWorkspace({
         </div>
       )}
 
+      {/* Canvas */}
+      <div ref={containerRef} className={`rounded-2xl border overflow-auto w-full ${T.canvasBg}`}
+        style={{ touchAction:'none', height:`${Math.min(displaySize+4, fitH)}px` }}>
+        <div style={{ position:'relative', margin:'0 auto', width:`${displaySize}px`, height:`${displaySize}px` }}>
+          <canvas
+            ref={guideCanvasRef} width={CS} height={CS}
+            aria-hidden="true"
+            style={{ position:'absolute', zIndex: guideSet.front ? 2 : 0, top:0, left:0, width:`${displaySize}px`, height:`${displaySize}px`, pointerEvents:'none' }}
+          />
+          <canvas
+            ref={canvasRef} width={CS} height={CS}
+            role="img"
+            aria-label={`Drawing canvas for character ${selectedChar}. Requires mouse, touch, or stylus input — not keyboard-operable.`}
+            style={{ position:'relative', zIndex:1, width:`${displaySize}px`, height:`${displaySize}px`, display:'block', cursor:'crosshair' }}
+            onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing}
+            onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
+            onPointerMove={handlePointerMove}
+          />
+          <canvas
+            ref={predictCanvasRef} width={CS} height={CS}
+            aria-hidden="true"
+            style={{ position:'absolute', zIndex:3, top:0, left:0, width:`${displaySize}px`, height:`${displaySize}px`, pointerEvents:'none' }}
+          />
+        </div>
+      </div>
+
+      {/* Zoom + quick actions (always visible under the canvas) */}
+      <div className="flex flex-wrap items-center gap-1.5 text-xs font-semibold">
+        <div className="flex items-center gap-1" role="group" aria-label="Zoom level">
+          <span className="opacity-70 mr-0.5">Zoom</span>
+          {ZOOMS.map(z=>(
+            <button key={z} onClick={()=>setZoomLevel(z)} aria-pressed={zoomLevel===z}
+              className={`px-2.5 py-1.5 rounded-lg border transition ${zoomLevel===z?T.btn:'opacity-75 hover:opacity-100'}`}>{z}x</button>
+          ))}
+          <span className="ml-1 text-[11px] opacity-60 tabular-nums">{Math.round(totalScale*100)}%</span>
+        </div>
+        <div className="ml-auto flex items-center gap-1.5">
+          <button onClick={loadSkeleton} title="Skeleton Template" aria-label="Load skeleton template"
+            className={`px-2.5 py-1.5 rounded-lg border flex items-center gap-1.5 ${T.btnGhost}`}>
+            <Layers className="w-4 h-4" aria-hidden="true"/> <span className="hidden sm:inline">Skeleton</span>
+          </button>
+          <button onClick={autoVariations} title="Auto Variations" aria-label="Auto variations"
+            className={`px-2.5 py-1.5 rounded-lg border flex items-center gap-1.5 ${T.accentBg}`}>
+            <Sparkles className="w-4 h-4" aria-hidden="true"/> <span className="hidden sm:inline">Variations</span>
+          </button>
+        </div>
+      </div>
+      </div>
+
+      {/* Controls: collapsible sections — click / tap to open, again to close */}
+      <div className="space-y-2.5 lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
+      {showShortcuts && (
+        <div className={`p-3 rounded-xl border text-[10px] ${T.sub}`}>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 font-mono">
+            {[['Ctrl+Z','Undo'],['Ctrl+Y','Redo'],['E','Eraser'],['B','Brush'],
+              ['M','Metrics'],['S','Snap'],['R','Ruler'],['X','Mirror'],
+              ['G','Reference'],['H','Shape Guide'],['P','Predict'],['[ ]','Size ±'],['1-4','Zoom']].map(([k,v])=>(
+              <div key={k} className="flex items-center gap-2">
+                <kbd className={`px-1.5 py-0.5 rounded border text-[9px] font-black ${T.card}`}>{k}</kbd>
+                <span className="opacity-50">{v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {shapeOn && (
         <ShapeGuidePanel T={T} char={selectedChar} settings={guideSet} adj={guideAdj} supported={guideOk} fontLoaded={fontLoaded}
           score={guideScore} matchMsg={matchMsg}
@@ -722,12 +799,9 @@ export default function CanvasWorkspace({
         </ShapeGuidePanel>
       )}
 
-      <BrushPalette T={T} brushMode={brushMode} strokeWidth={strokeWidth}
-        setBrushMode={setBrushMode} setStrokeWidth={setStrokeWidth}
-        custom={customBrushes} setCustom={setCustomBrushes} />
-
       {/* Brush controls */}
-      <div className={`flex flex-wrap items-center gap-x-3 gap-y-2 p-2.5 rounded-xl border text-[10px] font-black ${T.sub}`}>
+      <Collapsible id="brushtools" title="BRUSH & TOOLS" si="මෙවලම්" icon={Paintbrush} summary={`${brushMode} · ${strokeWidth}`} defaultOpen T={T}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2.5 text-xs font-semibold">
         <div className="flex items-center gap-1" role="group" aria-label="Brush mode">
           <span className="opacity-70">MODE:</span>
           {MODES.map(m=>(
@@ -767,54 +841,11 @@ export default function CanvasWorkspace({
           </button>
         </div>
       </div>
+      </Collapsible>
 
-      {/* Zoom */}
-      <div className={`flex items-center gap-1.5 p-2 rounded-xl border text-[10px] font-black ${T.sub}`} role="group" aria-label="Zoom level">
-        <span className="opacity-70 mr-1">ZOOM:</span>
-        {ZOOMS.map(z=>(
-          <button key={z} onClick={()=>setZoomLevel(z)} aria-pressed={zoomLevel===z}
-            className={`px-2.5 py-1 rounded-lg border transition ${zoomLevel===z?T.btn:'opacity-70 hover:opacity-100'}`}>{z}x</button>
-        ))}
-        <span className="ml-auto text-[9px] opacity-60">{Math.round(totalScale*100)}% · Pinch / Pen pressure supported</span>
-      </div>
-
-      {/* Canvas */}
-      <div ref={containerRef} className={`rounded-2xl border overflow-auto w-full ${T.canvasBg}`}
-        style={{ touchAction:'none', height:`${displaySize+4}px` }}>
-        <div style={{ position:'relative', margin:'0 auto', width:`${displaySize}px`, height:`${displaySize}px` }}>
-          <canvas
-            ref={guideCanvasRef} width={CS} height={CS}
-            aria-hidden="true"
-            style={{ position:'absolute', zIndex: guideSet.front ? 2 : 0, top:0, left:0, width:`${displaySize}px`, height:`${displaySize}px`, pointerEvents:'none' }}
-          />
-          <canvas
-            ref={canvasRef} width={CS} height={CS}
-            role="img"
-            aria-label={`Drawing canvas for character ${selectedChar}. Requires mouse, touch, or stylus input — not keyboard-operable.`}
-            style={{ position:'relative', zIndex:1, width:`${displaySize}px`, height:`${displaySize}px`, display:'block', cursor:'crosshair' }}
-            onMouseDown={startDrawing} onMouseMove={draw} onMouseUp={stopDrawing} onMouseLeave={stopDrawing}
-            onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
-            onPointerMove={handlePointerMove}
-          />
-          <canvas
-            ref={predictCanvasRef} width={CS} height={CS}
-            aria-hidden="true"
-            style={{ position:'absolute', zIndex:3, top:0, left:0, width:`${displaySize}px`, height:`${displaySize}px`, pointerEvents:'none' }}
-          />
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="grid grid-cols-2 gap-2">
-        <button onClick={loadSkeleton}
-          className={`py-2.5 text-[10px] font-bold rounded-xl border flex items-center justify-center gap-1.5 ${T.btnGhost}`}>
-          <Layers className="w-3.5 h-3.5" aria-hidden="true"/> Skeleton Template
-        </button>
-        <button onClick={autoVariations}
-          className={`py-2.5 text-[10px] font-bold rounded-xl border flex items-center justify-center gap-1.5 ${T.accentBg}`}>
-          <Sparkles className="w-3.5 h-3.5" aria-hidden="true"/> Auto Variations
-        </button>
-      </div>
+      <BrushPalette T={T} brushMode={brushMode} strokeWidth={strokeWidth}
+        setBrushMode={setBrushMode} setStrokeWidth={setStrokeWidth}
+        custom={customBrushes} setCustom={setCustomBrushes} />
 
       {/* Mobile sheet triggers */}
       <div className="grid grid-cols-2 gap-2 lg:hidden">
@@ -826,6 +857,7 @@ export default function CanvasWorkspace({
           className={`py-2.5 text-[10px] font-bold rounded-xl border flex items-center justify-center gap-1.5 ${T.btnGhost}`}>
           <Ruler className="w-3.5 h-3.5" aria-hidden="true"/> Metrics <ChevronUp className="w-3.5 h-3.5" aria-hidden="true"/>
         </button>
+      </div>
       </div>
     </div>
   );

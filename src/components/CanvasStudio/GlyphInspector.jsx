@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Activity, Minimize2 } from 'lucide-react';
 import { inspectGlyph } from '../../utils/glyphInspector.js';
+import Collapsible from '../Shared/Collapsible.jsx';
 
 const CS = 500; // canvas coordinate space
 
@@ -8,11 +9,9 @@ export default function GlyphInspector({ selectedChar, glyphs, T }) {
   const info = useMemo(() => inspectGlyph(glyphs[selectedChar]), [glyphs, selectedChar]);
 
   if (!info) return (
-    <div className={`p-3 rounded-xl border text-center ${T.sub}`}>
-      <p className="text-[9px] opacity-60 font-medium">
-        &ldquo;{selectedChar}&rdquo; — draw strokes to see glyph metrics
-      </p>
-    </div>
+    <Collapsible id="inspector" title="GLYPH INSPECTOR" si="විශ්ලේෂණය" icon={Activity} summary={selectedChar} T={T}>
+      <p className="text-xs opacity-70 font-medium">&ldquo;{selectedChar}&rdquo; — draw strokes to see glyph metrics</p>
+    </Collapsible>
   );
 
   const { strokeCount, pointCount, bbox, centroid, widthStats, aspectRatio, complexity } = info;
@@ -41,15 +40,8 @@ export default function GlyphInspector({ selectedChar, glyphs, T }) {
   ];
 
   return (
-    <div className={`rounded-xl border overflow-hidden ${T.sub}`} aria-label="Glyph Inspector">
-      <div className={`flex items-center justify-between px-3 py-2 border-b ${T.divider}`}>
-        <h3 className={`text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 ${T.muted}`}>
-          <Activity className="w-3 h-3" aria-hidden="true"/> Glyph Inspector
-        </h3>
-        <span className={`text-[9px] font-black font-sinhala ${T.accent}`}>{selectedChar}</span>
-      </div>
-
-      <div className="flex gap-3 p-3">
+    <Collapsible id="inspector" title="GLYPH INSPECTOR" si="විශ්ලේෂණය" icon={Activity} summary={`${selectedChar} · ${complexity}/100`} T={T}>
+      <div className="flex gap-3">
         {/* Bounding box visual */}
         <div className="flex-shrink-0 relative bg-slate-900/10 rounded-lg border"
           style={{ width:'82px', height:'82px' }} aria-hidden="true">
@@ -79,8 +71,8 @@ export default function GlyphInspector({ selectedChar, glyphs, T }) {
       </div>
 
       {/* Complexity bar */}
-      <div className={`px-3 pb-3`}>
-        <div className="flex justify-between text-[8px] opacity-50 mb-1">
+      <div className="mt-3">
+        <div className="flex justify-between text-[8px] opacity-60 mb-1">
           <span>Path complexity</span>
           <span>{complexity}/100</span>
         </div>
@@ -89,6 +81,6 @@ export default function GlyphInspector({ selectedChar, glyphs, T }) {
             style={{ width:`${complexity}%`, backgroundColor: complexity > 70 ? '#f87171' : complexity > 40 ? '#fbbf24' : '#34d399' }}/>
         </div>
       </div>
-    </div>
+    </Collapsible>
   );
 }

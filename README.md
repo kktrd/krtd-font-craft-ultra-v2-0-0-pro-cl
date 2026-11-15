@@ -533,3 +533,8 @@ Open with the 🤖 button (bottom-right) or **Alt+A**.
 - The right-hand tool panel was one very long scroll. It is now four tabs with a sticky tab bar: **Metrics** (glyph inspector, spacing, metric sliders) · **Check** (coverage + export check; badge shows coverage %) · **Info** (font name, font info, style learning) · **Export** (TTF primary button, OTF/WOFF side by side, sheets, cloud, versions, backup).
 - Accessible tabs (WAI-ARIA tablist: arrow keys wrap, Home/End, roles + aria-controls); last tab is remembered per browser (`krtd_panel_tab_v1`).
 - Verified by server-rendering all four tabs and unit-testing the keyboard logic. Visual spacing was not checked in a real browser in this environment.
+
+## v6.0.0 — UI / UX refresh
+- Drawing canvas stays sticky (mobile: pinned at top, desktop: columns fill the screen, no page scroll).
+- All side modules are tap-to-expand accordions (state remembered); export buttons pinned on top of the right panel.
+- One unified type system (Google Sans Flex → DM Sans → Noto Sans Sinhala) with a readability floor for small text.

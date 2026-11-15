@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ShieldCheck, AlertTriangle, Info, XCircle } from 'lucide-react';
+import Collapsible from '../Shared/Collapsible.jsx';
 
 const ICON = { error: [XCircle, 'text-rose-400'], warn: [AlertTriangle, 'text-amber-400'], info: [Info, 'text-sky-400'] };
 
@@ -8,12 +9,10 @@ export default function QualityCard({ fontName, metrics, glyphs, onSelectChar, T
   const [rep, setRep] = useState(null);
   const run = async () => { try { const { qualityReport } = await import('../../utils/fontQuality.js'); setRep(qualityReport({ fontName, metrics, glyphs })); } catch { setRep({ ok: false, issues: [{ level: 'error', code: 'x', text: 'පරීක්ෂාව අසාර්ථකයි.', chars: [] }], counts: { error: 1, warn: 0, info: 0 } }); } };
   return (
-    <div className={`p-3 rounded-xl border space-y-2 ${T.sub}`} role="group" aria-label="Quality check">
-      <div className="flex items-center gap-2 text-[10px] font-black">
-        <ShieldCheck className="w-3.5 h-3.5" aria-hidden="true" />
-        <span>EXPORT CHECK · පරීක්ෂා කරන්න</span>
-        <button type="button" onClick={run} className={`ml-auto px-2 py-1 rounded-lg border ${T.btn}`}>Run check</button>
-      </div>
+    <Collapsible id="quality" title="EXPORT CHECK" si="පරීක්ෂා කරන්න" icon={ShieldCheck}
+      summary={rep ? `${rep.counts.error}✕ ${rep.counts.warn}! ` : null} T={T}>
+      <div className="space-y-2">
+      <button type="button" onClick={run} className={`w-full py-2 rounded-lg border text-xs font-bold ${T.btn}`}>Run check</button>
       {rep && (
         <>
           <p className="text-[9px] font-bold opacity-80">
@@ -39,6 +38,7 @@ export default function QualityCard({ fontName, metrics, glyphs, onSelectChar, T
           </ul>
         </>
       )}
-    </div>
+      </div>
+    </Collapsible>
   );
 }
