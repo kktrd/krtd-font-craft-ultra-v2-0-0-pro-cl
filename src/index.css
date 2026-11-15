@@ -14,7 +14,7 @@
 
   body {
     margin: 0;
-    font-family: 'Google Sans Flex','Google Sans','DM Sans','Yaldevi','Noto Sans Sinhala',system-ui,-apple-system,'Segoe UI',sans-serif;
+    font-family: 'Google Sans Flex','Google Sans','DM Sans','Noto Sans Sinhala',system-ui,-apple-system,'Segoe UI',sans-serif;
     font-feature-settings: 'tnum' 0;
     letter-spacing: 0.005em;
     text-rendering: optimizeLegibility;
@@ -62,7 +62,7 @@ input[type="range"]::-webkit-slider-thumb {
 
 /* ── Sinhala font class ─────────────────────────────────────────── */
 .font-sinhala {
-  font-family: 'Google Sans Flex','Google Sans','DM Sans','Yaldevi','Noto Sans Sinhala',system-ui,-apple-system,'Segoe UI',sans-serif;
+  font-family: 'Google Sans Flex','Google Sans','DM Sans','Noto Sans Sinhala',system-ui,-apple-system,'Segoe UI',sans-serif;
 }
 
 /* ── One typeface: form controls inherit it, numbers align (no separate monospace face) ── */
