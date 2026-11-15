@@ -527,3 +527,9 @@ Open with the 🤖 button (bottom-right) or **Alt+A**.
 
 - Help panel: new entries 14–18 (brush presets, coverage + export check, spacing + font info, export formats, install & test steps).
 - OTF path check: GSUB/GPOS/GDEF tables injected by `injectTable` into a real CFF (`OTTO`) font open in fontTools and shape identically to the TTF in Chromium. (The CFF part itself still comes from opentype.js 1.x; that library could not be installed in the build sandbox, so the end-to-end OTF build is covered by CI's production build, not by a local run.)
+
+## v5.9.0 — Tabbed tool panel
+
+- The right-hand tool panel was one very long scroll. It is now four tabs with a sticky tab bar: **Metrics** (glyph inspector, spacing, metric sliders) · **Check** (coverage + export check; badge shows coverage %) · **Info** (font name, font info, style learning) · **Export** (TTF primary button, OTF/WOFF side by side, sheets, cloud, versions, backup).
+- Accessible tabs (WAI-ARIA tablist: arrow keys wrap, Home/End, roles + aria-controls); last tab is remembered per browser (`krtd_panel_tab_v1`).
+- Verified by server-rendering all four tabs and unit-testing the keyboard logic. Visual spacing was not checked in a real browser in this environment.
