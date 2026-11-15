@@ -27,6 +27,7 @@ import { missingChars, sheetPlan, showable, SAMPLE_LINES } from '../src/utils/te
 import { exportSettings, importSettings, isMissingSettingsColumn } from '../src/utils/settingsSync.js';
 import { autoSpacing, edgeDepths } from '../src/utils/autoSpacing.js';
 import { copySpacing } from '../src/utils/settingsSync.js';
+import { isTailSequence } from '../src/utils/gposWriter.js';
 import { toWOFF } from '../src/utils/woffWriter.js';
 import { resolveLigatures, buildGSUB, injectTable, sequenceVariants } from '../src/utils/gsubWriter.js';
 import { buildTrueTypeFont, signedArea, cleanContour, postScriptName } from '../src/utils/ttfWriter.js';
@@ -100,7 +101,7 @@ t('agent: full perfect project scores 100 / ship phase', () => {
   const chars = all.coverage.flatMap((c) => c.missing);
   const g = Object.fromEntries(chars.map((c) => [c, stroke(12)[0] && stroke(12)]));
   const a = analyzeProject({ glyphs: g, metrics: { ...DEFAULT_METRICS }, selectedChar: 'ක', styleLearned: true, env: { isOnline: true, hasSupabase: true } });
-  assert.equal(a.drawnCount, 75); assert.equal(a.score, 100); assert.equal(a.phase, 'ship');
+  assert.equal(a.drawnCount, 77); assert.equal(a.score, 100); assert.equal(a.phase, 'ship');
   assert.equal(nextBestActions(a).find((x) => x.id === 'export_ttf').id, 'export_ttf');
 });
 t('agent: metrics validation + repair', () => {
@@ -709,6 +710,20 @@ t('autoSpacing: pointed letters get tighter bearings than boxy ones; copySpacing
     copySpacing('ඛ', 'ග');                                       // source has none -> target reset to match
     assert.equal(JSON.parse(store.krtd_glyph_spacing_v1)['ග'], undefined);
   } finally { delete globalThis.localStorage; }
+});
+t('rakaransaya / yansaya: tail sequences, ligature variants, tight bearing, not kerned', () => {
+  assert.ok(isTailSequence([0x0DCA, 0x200D, 0x0DBB])); assert.ok(isTailSequence([0x0DCA, 0x200D, 0x0DBA]));
+  assert.ok(!isTailSequence([0x0DCA, 0x0DBB])); assert.ok(!isTailSequence(undefined));
+  const line = (x1, y1, x2, y2) => { const a = []; for (let i = 0; i <= 8; i++) a.push({ x: x1 + (x2 - x1) * i / 8, y: y1 + (y2 - y1) * i / 8, isEraser: false, strokeWidth: 14 }); return a; };
+  const metrics = { baseline: 400, ascender: 100, descender: 480, xHeight: 200, capHeight: 120 };
+  const { model } = buildFontModel({ fontName: 'R', metrics, glyphs: { 'ක': [line(100, 200, 250, 350)], 'ර': [line(100, 250, 200, 350)], '්': [line(100, 150, 180, 150)], '්‍ර': [line(300, 340, 380, 390)] } });
+  const tail = model.glyphs.find((g) => g.sequence && g.sequence.length === 3);
+  assert.deepEqual(tail.sequence, [0x0DCA, 0x200D, 0x0DBB]);
+  const xs = tail.contours.flat().map((p) => p.x);
+  assert.equal(Math.round(Math.min(...xs)), 15);                         // tight left bearing like a post-base sign
+  const lig = resolveLigatures(model.glyphs);
+  assert.ok(lig.some((l) => l.components.length === 3 && l.glyph === model.glyphs.indexOf(tail)));
+  assert.ok(!computeKerning(model.glyphs).some((p) => p.left === model.glyphs.indexOf(tail) || p.right === model.glyphs.indexOf(tail)));
 });
 for (const [name, fn] of asyncT) { try { await fn(); n++; console.log('ok  ' + name); } finally { globalThis.fetch = realFetch; } }
 

@@ -17,7 +17,7 @@ import { buildTrueTypeFont, cleanContour, postScriptName } from './ttfWriter.js'
 import { resolveLigatures, buildGSUB, injectTable } from './gsubWriter.js';
 import { loadMeta, metaToNames } from './fontMeta.js';
 import { loadSpacing, getSpacing } from './spacing.js';
-import { buildGPOS, buildGDEF, isMarkCode, SIGNS_POST, SIGNS_PRE } from './gposWriter.js';
+import { buildGPOS, buildGDEF, isMarkCode, isTailSequence, SIGNS_POST, SIGNS_PRE } from './gposWriter.js';
 import { FEATURE_FLAGS } from './featureFlags.js';
 import { strokeToContours, normalizeWinding } from './strokeOutline.js';
 
@@ -115,7 +115,7 @@ export function buildFontModel({ fontName, metrics, glyphs }) {
     contours.forEach(c => c.forEach(p => { minX = Math.min(minX, p.x); maxX = Math.max(maxX, p.x); }));
     // Vowel signs that sit beside a letter get a tight bearing on the side that touches it.
     const cp0 = char.length === 1 ? char.codePointAt(0) : null;
-    const post = cp0 != null && SIGNS_POST.has(cp0), pre = cp0 != null && SIGNS_PRE.has(cp0);
+    const post = (cp0 != null && SIGNS_POST.has(cp0)) || isTailSequence(Array.from(char).map((c) => c.codePointAt(0))), pre = cp0 != null && SIGNS_PRE.has(cp0);
     const adj = getSpacing(spacingMap, char);   // manual per-glyph extra bearings
     const lsbU = Math.max(0, (post ? SIGN_TIGHT : (pre ? SIGN_LOOSE : SIDE_BEARING)) + adj.l);
     const rsbU = Math.max(0, (post ? SIGN_LOOSE : (pre ? SIGN_TIGHT : SIDE_BEARING)) + adj.r);

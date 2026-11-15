@@ -14,6 +14,8 @@ export const isMarkCode = (u) => MARKS_ABOVE.has(u) || MARKS_BELOW.has(u);
 export const SIGNS_POST = new Set([0x0d82, 0x0d83, 0x0dcf, 0x0dd0, 0x0dd1, 0x0dd8, 0x0df2, 0x0ddf]);   // after the letter
 export const SIGNS_PRE  = new Set([0x0dd9, 0x0dda, 0x0ddb]);                                          // drawn before the letter
 export const isSpacingSign = (u) => SIGNS_POST.has(u) || SIGNS_PRE.has(u);
+/** Rakaransaya (්‍ර) / yansaya (්‍ය): ligature glyphs that follow the base letter like a spacing sign. */
+export const isTailSequence = (seq) => Array.isArray(seq) && seq.length === 3 && seq[0] === 0x0dca && seq[1] === 0x200d && (seq[2] === 0x0dbb || seq[2] === 0x0dba);
 
 const KERN_MIN = 15, KERN_MAX_TIGHT = -150, KERN_MAX_LOOSE = 60, KERN_PAIR_CAP = 4000, BAND = 25;
 
@@ -51,7 +53,7 @@ const median = (a) => { const s = a.slice().sort((x, y) => x - y); return s.leng
 export function computeKerning(glyphs) {
   const ids = [];
   glyphs.forEach((g, i) => {
-    if (i === 0 || g.unicode === 32 || !g.contours.length || isMarkCode(g.unicode) || isSpacingSign(g.unicode)) return;
+    if (i === 0 || g.unicode === 32 || !g.contours.length || isMarkCode(g.unicode) || isSpacingSign(g.unicode) || isTailSequence(g.sequence)) return;
     ids.push(i);
   });
   if (ids.length < 2) return [];
@@ -99,7 +101,7 @@ export function computeMarkAttachments(glyphs) {
   const GAP = 20;
   const bases = [];
   glyphs.forEach((g, gid) => {
-    if (gid === 0 || g.unicode === 32 || isMarkCode(g.unicode) || isSpacingSign(g.unicode) || !g.contours.length) return;
+    if (gid === 0 || g.unicode === 32 || isMarkCode(g.unicode) || isSpacingSign(g.unicode) || isTailSequence(g.sequence) || !g.contours.length) return;
     const b = bbox(g.contours);
     if (!b) return;
     const cx = Math.round((b.x0 + b.x1) / 2);

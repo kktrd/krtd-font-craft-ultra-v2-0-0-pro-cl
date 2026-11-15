@@ -515,3 +515,10 @@ Open with the 🤖 button (bottom-right) or **Alt+A**.
 
 - **Auto-space all** (SPACING card): optical spacing. For every drawn letter the app measures how much white space sits between the bounding box and the ink on each side (round / pointed shapes have more). Letters with more than the font's median get a little less bearing and boxy ones a little more (strength 0.4, steps of 5, within −50…+150). Marks and spacing vowel signs are left alone. It is a starting point — fine-tune per letter with the sliders. **Clear all** removes every manual adjustment. (`src/utils/autoSpacing.js`, tested.)
 - **Copy → Paste glyph** now also copies the source letter's manual spacing to the target letter.
+
+## v5.8.0 — Rakaransaya (්‍ර) and yansaya (්‍ය)
+
+- Two new Pillam & Symbols glyph slots: **්‍ර** (rakaransaya) and **්‍ය** (yansaya). Draw each as the tail that sits after / below the base letter (like a trailing sign).
+- Export: typing `C + ් + ZWJ + ර/ය` (e.g. ක්‍ර) is turned by the GSUB table into the base letter followed by your tail glyph; the tail gets a tight left bearing and is excluded from kerning. Requires ් and ර / ය to be drawn too (the Export check tells you).
+- Verified in Chromium: "ක්‍ර" renders as ක + tail (66 px) instead of ක + ර (84 px). Atlas now has 77 slots.
+- Limit: the tail is placed after the base's advance, not attached below it; draw it at the height you want it to appear.
