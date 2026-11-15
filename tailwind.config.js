@@ -6,9 +6,9 @@ export default {
     extend: {
       fontFamily: {
         // One UI typeface everywhere (Sinhala falls through to Noto Sans Sinhala automatically).
-        sans:    ['Google Sans Flex', 'Google Sans', 'DM Sans', 'Noto Sans Sinhala', 'system-ui', 'sans-serif'],
-        mono:    ['Google Sans Flex', 'Google Sans', 'DM Sans', 'Noto Sans Sinhala', 'system-ui', 'sans-serif'],
-        sinhala: ['Google Sans Flex', 'Google Sans', 'DM Sans', 'Noto Sans Sinhala', 'system-ui', 'sans-serif'],
+        sans:    ['Google Sans Flex', 'Google Sans', 'DM Sans', 'Yaldevi', 'Noto Sans Sinhala', 'system-ui', 'sans-serif'],
+        mono:    ['Google Sans Flex', 'Google Sans', 'DM Sans', 'Yaldevi', 'Noto Sans Sinhala', 'system-ui', 'sans-serif'],
+        sinhala: ['Google Sans Flex', 'Google Sans', 'DM Sans', 'Yaldevi', 'Noto Sans Sinhala', 'system-ui', 'sans-serif'],
       },
       colors: {
         krtd: {
