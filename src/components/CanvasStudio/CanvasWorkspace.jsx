@@ -15,6 +15,7 @@ import ShapeGuidePanel from './ShapeGuidePanel.jsx';
 import ShapeCompare from './ShapeCompare.jsx';
 import BrushPalette from './BrushPalette.jsx';
 import Collapsible from '../Shared/Collapsible.jsx';
+import WeightTemplates from './WeightTemplates.jsx';
 import { fitCanvasHeight } from '../../utils/layoutFit.js';
 import { CUSTOM_KEY, sanitizeCustom, stepPreset, BRUSH_PRESETS } from '../../utils/brushPresets.js';
 
@@ -796,6 +797,10 @@ export default function CanvasWorkspace({
       )}
 
 
+      <WeightTemplates T={T} glyphs={glyphs} setGlyphs={setGlyphs} selectedChar={selectedChar}
+        brushMode={brushMode} strokeWidth={strokeWidth} setBrushMode={setBrushMode} setStrokeWidth={setStrokeWidth}
+        onChanged={(g) => redrawGlyph(g[selectedChar] || [])} toast={toast} />
+
       {/* Brush controls */}
       <Collapsible id="brushtools" title="BRUSH & TOOLS" si="මෙවලම්" icon={Paintbrush} summary={`${brushMode} · ${strokeWidth}`} defaultOpen T={T}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2.5 text-xs font-semibold">
@@ -839,6 +844,7 @@ export default function CanvasWorkspace({
         </div>
       </div>
       </Collapsible>
+
 
       <BrushPalette T={T} brushMode={brushMode} strokeWidth={strokeWidth}
         setBrushMode={setBrushMode} setStrokeWidth={setStrokeWidth}

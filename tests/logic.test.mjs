@@ -28,6 +28,7 @@ import { exportSettings, importSettings, isMissingSettingsColumn } from '../src/
 import { autoSpacing, edgeDepths } from '../src/utils/autoSpacing.js';
 import { copySpacing } from '../src/utils/settingsSync.js';
 import { isTailSequence } from '../src/utils/gposWriter.js';
+import { WEIGHTS, meanWidth, nearestWeight, reweightGlyphs } from '../src/utils/weightTemplates.js';
 import { fitCanvasHeight, MIN_CANVAS, CONTROLS_MIN } from '../src/utils/layoutFit.js';
 import { sanitizeAcc, isOpen, saveOpen, loadAcc, ACC_KEY } from '../src/utils/uiState.js';
 import { toWOFF } from '../src/utils/woffWriter.js';
@@ -726,6 +727,26 @@ t('rakaransaya / yansaya: tail sequences, ligature variants, tight bearing, not 
   const lig = resolveLigatures(model.glyphs);
   assert.ok(lig.some((l) => l.components.length === 3 && l.glyph === model.glyphs.indexOf(tail)));
   assert.ok(!computeKerning(model.glyphs).some((p) => p.left === model.glyphs.indexOf(tail) || p.right === model.glyphs.indexOf(tail)));
+});
+t('weightTemplates: re-weight keeps shape, skips eraser, one-char scope, safe on bad input', () => {
+  const pts = (w) => [{ x: 0, y: 0, strokeWidth: w }, { x: 5, y: 5, strokeWidth: w * 2 }];
+  const g = { a: [pts(10)], b: [pts(20), [{ x: 1, y: 1, isEraser: true, strokeWidth: 30 }, { x: 2, y: 2, isEraser: true, strokeWidth: 30 }]] };
+  assert.ok(Math.abs(meanWidth(g) - 30) < 1e-9 || meanWidth(g) > 0);
+  const r = reweightGlyphs(g, 15);
+  assert.equal(r.count, 2);
+  assert.ok(Math.abs(meanWidth(r.glyphs) - 15) < 0.6);
+  const ratio = r.glyphs.a[0][1].strokeWidth / r.glyphs.a[0][0].strokeWidth;
+  assert.ok(Math.abs(ratio - 2) < 0.1);
+  assert.equal(r.glyphs.b[1][0].strokeWidth, 30);
+  assert.equal(g.a[0][0].strokeWidth, 10);
+  const one = reweightGlyphs(g, 6, 'a');
+  assert.equal(one.count, 1); assert.equal(one.glyphs.b, g.b);
+  assert.equal(reweightGlyphs({}, 10).count, 0);
+  assert.equal(reweightGlyphs(g, NaN).count, 0);
+  assert.equal(reweightGlyphs(g, 10, 'zzz').count, 0);
+  assert.equal(nearestWeight(23).id, 'bold');
+  assert.equal(nearestWeight(1).id, 'thin');
+  assert.equal(WEIGHTS.length, 5);
 });
 t('layoutFit: canvas height fits column, has floor, handles bad input', () => {
   assert.equal(fitCanvasHeight(800, 100), 800 - 100 - CONTROLS_MIN);

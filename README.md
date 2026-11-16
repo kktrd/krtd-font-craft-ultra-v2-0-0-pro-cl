@@ -538,3 +538,6 @@ Open with the 🤖 button (bottom-right) or **Alt+A**.
 - Drawing canvas stays sticky (mobile: pinned at top, desktop: columns fill the screen, no page scroll).
 - All side modules are tap-to-expand accordions (state remembered); export buttons pinned on top of the right panel.
 - One unified type system (Google Sans Flex → DM Sans → Noto Sans Sinhala) with a readability floor for small text.
+
+### Weight templates
+Canvas Studio → WEIGHT TEMPLATES: Thin / Light / Regular / Bold / Extra Bold × Calligraphy / Tapered / Monoline. One tap sets the pen; "සියලු අකුරු → weight" or the per-character buttons re-weight strokes already drawn (taper/pressure shape kept, one-step Undo).
