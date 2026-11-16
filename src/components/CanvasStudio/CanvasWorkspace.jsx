@@ -795,14 +795,6 @@ export default function CanvasWorkspace({
         </div>
       )}
 
-      {shapeOn && (
-        <ShapeGuidePanel T={T} char={selectedChar} settings={guideSet} adj={guideAdj} supported={guideOk} fontLoaded={fontLoaded}
-          score={guideScore} matchMsg={matchMsg}
-          onSettings={patchSettings} onAdj={patchAdj} onResetChar={resetGuideChar} onResetAll={resetGuideAll}
-          onMatch={matchGuideStyle} onHide={() => setShapeOn(false)}>
-          <ShapeCompare T={T} char={selectedChar} strokes={guideStrokes} params={guideParams} metrics={metrics} fontTick={fontTick} />
-        </ShapeGuidePanel>
-      )}
 
       {/* Brush controls */}
       <Collapsible id="brushtools" title="BRUSH & TOOLS" si="මෙවලම්" icon={Paintbrush} summary={`${brushMode} · ${strokeWidth}`} defaultOpen T={T}>
@@ -851,6 +843,15 @@ export default function CanvasWorkspace({
       <BrushPalette T={T} brushMode={brushMode} strokeWidth={strokeWidth}
         setBrushMode={setBrushMode} setStrokeWidth={setStrokeWidth}
         custom={customBrushes} setCustom={setCustomBrushes} />
+
+      {shapeOn && (
+        <ShapeGuidePanel T={T} char={selectedChar} settings={guideSet} adj={guideAdj} supported={guideOk} fontLoaded={fontLoaded}
+          score={guideScore} matchMsg={matchMsg}
+          onSettings={patchSettings} onAdj={patchAdj} onResetChar={resetGuideChar} onResetAll={resetGuideAll}
+          onMatch={matchGuideStyle} onHide={() => setShapeOn(false)}>
+          <ShapeCompare T={T} char={selectedChar} strokes={guideStrokes} params={guideParams} metrics={metrics} fontTick={fontTick} />
+        </ShapeGuidePanel>
+      )}
 
       {/* Mobile sheet triggers */}
       <div className="grid grid-cols-2 gap-2 lg:hidden">

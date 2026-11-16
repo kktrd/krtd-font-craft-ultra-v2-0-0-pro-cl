@@ -1,7 +1,7 @@
 // Layout maths for the drawing column (desktop). Pure.
 
 export const MIN_CANVAS = 260;      // never smaller than this (px)
-export const CONTROLS_MIN = 150;    // room kept for the accordions below the canvas (px)
+export const CONTROLS_MIN = 215;    // room kept for the accordions below the canvas (px)
 
 /**
  * Largest canvas height that still leaves CONTROLS_MIN px for the controls.

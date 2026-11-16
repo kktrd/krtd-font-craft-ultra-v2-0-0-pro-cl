@@ -34,7 +34,7 @@ export default function BrushPalette({ T, brushMode, strokeWidth, setBrushMode, 
   const canSave = !current && custom.length < MAX_CUSTOM;
 
   return (
-    <Collapsible id="brushpresets" title="BRUSH PRESETS" si="බ්‍රෂ් සකස්" icon={Brush}
+    <Collapsible id="brushpresets" title="BRUSH PRESETS" si="බ්‍රෂ් සකස්" icon={Brush} defaultOpen
       summary={current ? current.label : `${brushMode} ${strokeWidth}`} T={T}>
       <div className="space-y-3 text-xs font-semibold">
         <p className="opacity-70 font-medium leading-snug">Shortcuts: Alt+1…0 = preset · , / . = පෙර / ඊළඟ · [ ] = size</p>
