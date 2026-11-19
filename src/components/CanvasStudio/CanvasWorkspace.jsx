@@ -656,9 +656,9 @@ export default function CanvasWorkspace({
       {/* Drawing area: stays in view (sticky on phones, fixed on desktop) while the accordions below scroll */}
       <div ref={topRef} className={`canvas-top sticky z-20 lg:static lg:z-auto space-y-2.5 pb-2 ${T.solid}`} style={{ top: 0 }}>
       {/* Title row */}
-      <div className={`flex flex-wrap items-center justify-between gap-2 pb-3 border-b ${T.divider}`}>
-        <div>
-          <span className="text-[9px] font-bold uppercase opacity-70">Canvas Workspace</span>
+      <div className={`flex flex-nowrap items-center justify-between gap-2 pb-2 lg:pb-3 border-b ${T.divider}`}>
+        <div className="min-w-0">
+          <span className="hidden sm:block text-[9px] font-bold uppercase opacity-70">Canvas Workspace</span>
           <h2 className="text-xl font-black font-sinhala leading-tight">&ldquo;{selectedChar}&rdquo;
             <span className="ml-2 text-sm opacity-60 font-sans font-normal">
               U+{selectedChar.codePointAt(0).toString(16).toUpperCase().padStart(4,'0')}
@@ -670,65 +670,25 @@ export default function CanvasWorkspace({
             )}
           </h2>
         </div>
-        <div className="flex items-center gap-1.5 flex-wrap">
+        <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
           <div className={`flex p-0.5 rounded-xl border ${T.sub}`} role="group" aria-label="Drawing tool">
             <button onClick={()=>setIsEraser(false)} title="Brush (B)" aria-label="Brush tool" aria-pressed={!isEraser}
-              className={`p-2 rounded-lg transition ${!isEraser?brushAc:'opacity-35'}`}><Paintbrush className="w-4 h-4" aria-hidden="true"/></button>
+              className={`p-1.5 sm:p-2 rounded-lg transition ${!isEraser?brushAc:'opacity-35'}`}><Paintbrush className="w-4 h-4" aria-hidden="true"/></button>
             <button onClick={()=>setIsEraser(true)} title="Eraser (E)" aria-label="Eraser tool" aria-pressed={isEraser}
-              className={`p-2 rounded-lg transition ${isEraser?eraserAc:'opacity-35'}`}><Eraser className="w-4 h-4" aria-hidden="true"/></button>
+              className={`p-1.5 sm:p-2 rounded-lg transition ${isEraser?eraserAc:'opacity-35'}`}><Eraser className="w-4 h-4" aria-hidden="true"/></button>
           </div>
           <button onClick={handleUndo} disabled={!undoStack.length} title="Undo (Ctrl+Z)" aria-label="Undo last stroke"
-            className={`border p-2 rounded-xl disabled:opacity-20 transition ${T.btnGhost}`}><Undo2 className="w-4 h-4" aria-hidden="true"/></button>
+            className={`border p-1.5 sm:p-2 rounded-xl disabled:opacity-20 transition ${T.btnGhost}`}><Undo2 className="w-4 h-4" aria-hidden="true"/></button>
           <button onClick={handleRedo} disabled={!redoStack.length} title="Redo (Ctrl+Y)" aria-label="Redo last undone stroke"
-            className={`border p-2 rounded-xl disabled:opacity-20 transition ${T.btnGhost}`}><Redo2 className="w-4 h-4" aria-hidden="true"/></button>
+            className={`border p-1.5 sm:p-2 rounded-xl disabled:opacity-20 transition ${T.btnGhost}`}><Redo2 className="w-4 h-4" aria-hidden="true"/></button>
           <button onClick={exportPNG} title="Export PNG" aria-label="Export this glyph as PNG image"
-            className={`border p-2 rounded-xl transition ${T.btnGhost}`}><Image className="w-4 h-4" aria-hidden="true"/></button>
+            className={`border p-1.5 sm:p-2 rounded-xl transition ${T.btnGhost}`}><Image className="w-4 h-4" aria-hidden="true"/></button>
           <button onClick={()=>setShowShortcuts(s=>!s)} title="Shortcuts" aria-label="Toggle keyboard shortcuts panel" aria-pressed={showShortcuts}
-            className={`border p-2 rounded-xl transition ${showShortcuts?T.accentBg:T.btnGhost}`}><Keyboard className="w-4 h-4" aria-hidden="true"/></button>
+            className={`hidden sm:inline-flex border p-2 rounded-xl transition ${showShortcuts?T.accentBg:T.btnGhost}`}><Keyboard className="w-4 h-4" aria-hidden="true"/></button>
           <button onClick={clearCanvas}
-            className={`text-[10px] px-3 py-2 rounded-xl font-bold transition border ${T.btnDanger}`}>Clear</button>
+            className={`text-[10px] px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl font-bold transition border ${T.btnDanger}`}>Clear</button>
         </div>
       </div>
-
-      {/* Clipboard paste banner */}
-      {clipboardGlyph?.length > 0 && (
-        <div className={`flex items-center gap-3 p-2.5 rounded-xl border ${T.accentBg}`}>
-          <ClipboardPaste className="w-4 h-4 flex-shrink-0" aria-hidden="true"/>
-          <span className="text-[10px] font-bold flex-1">Clipboard ready — paste strokes into &ldquo;{selectedChar}&rdquo;</span>
-          <button onClick={pasteClipboard}
-            className={`text-[10px] font-black px-3 py-1.5 rounded-lg ${T.btn}`}>Paste</button>
-          <button onClick={onClearClipboard} aria-label="Dismiss clipboard" className="opacity-70 hover:opacity-100 p-1"><span className="text-xs" aria-hidden="true">✕</span></button>
-        </div>
-      )}
-
-      {/* Mirror mode banner */}
-      {mirrorMode && (
-        <div className="flex items-center gap-3 p-2.5 rounded-xl border bg-pink-500/10 border-pink-500/30">
-          <FlipHorizontal2 className="w-4 h-4 flex-shrink-0 text-pink-500" aria-hidden="true"/>
-          <span className="text-[10px] font-bold flex-1 text-pink-500">
-            Mirror Mode ON — symmetric loops (ක, ට, ඩ) auto-draw on both sides
-          </span>
-        </div>
-      )}
-
-      {/* Reference mode banner + char picker */}
-      {referenceMode && (
-        <div className="flex items-center gap-3 p-2.5 rounded-xl border bg-violet-500/10 border-violet-500/30">
-          <Layers3 className="w-4 h-4 flex-shrink-0 text-violet-500" aria-hidden="true"/>
-          <label htmlFor={referenceInputId} className="text-[10px] font-bold text-violet-500 flex-shrink-0">Reference:</label>
-          <input
-            id={referenceInputId}
-            type="text" maxLength={1} value={referenceChar}
-            onChange={e => setReferenceChar(e.target.value.trim())}
-            placeholder="e.g. ක"
-            autoCapitalize="none" autoCorrect="off" spellCheck={false}
-            className="w-12 text-center font-sinhala font-black text-sm bg-transparent border border-violet-400/40 rounded-lg py-1 focus:outline-none text-violet-500"
-          />
-          <span className="text-[9px] text-violet-400 flex-1" role="status">
-            {referenceChar && !glyphs[referenceChar]?.length ? 'මේ char එක draw කරලා නෑ' : 'ඝෝස්ට් overlay ලෙස පෙනේවි'}
-          </span>
-        </div>
-      )}
 
       {/* Canvas */}
       <div ref={containerRef} className={`rounded-2xl border overflow-auto w-full ${T.canvasBg}`}
@@ -781,6 +741,46 @@ export default function CanvasWorkspace({
 
       {/* Controls: collapsible sections — click / tap to open, again to close */}
       <div className="space-y-2.5 lg:flex-1 lg:min-h-0 lg:overflow-y-auto lg:pr-1">
+      {/* Clipboard paste banner */}
+      {clipboardGlyph?.length > 0 && (
+        <div className={`flex items-center gap-3 p-2.5 rounded-xl border ${T.accentBg}`}>
+          <ClipboardPaste className="w-4 h-4 flex-shrink-0" aria-hidden="true"/>
+          <span className="text-[10px] font-bold flex-1">Clipboard ready — paste strokes into &ldquo;{selectedChar}&rdquo;</span>
+          <button onClick={pasteClipboard}
+            className={`text-[10px] font-black px-3 py-1.5 rounded-lg ${T.btn}`}>Paste</button>
+          <button onClick={onClearClipboard} aria-label="Dismiss clipboard" className="opacity-70 hover:opacity-100 p-1"><span className="text-xs" aria-hidden="true">✕</span></button>
+        </div>
+      )}
+
+      {/* Mirror mode banner */}
+      {mirrorMode && (
+        <div className="flex items-center gap-3 p-2.5 rounded-xl border bg-pink-500/10 border-pink-500/30">
+          <FlipHorizontal2 className="w-4 h-4 flex-shrink-0 text-pink-500" aria-hidden="true"/>
+          <span className="text-[10px] font-bold flex-1 text-pink-500">
+            Mirror Mode ON — symmetric loops (ක, ට, ඩ) auto-draw on both sides
+          </span>
+        </div>
+      )}
+
+      {/* Reference mode banner + char picker */}
+      {referenceMode && (
+        <div className="flex items-center gap-3 p-2.5 rounded-xl border bg-violet-500/10 border-violet-500/30">
+          <Layers3 className="w-4 h-4 flex-shrink-0 text-violet-500" aria-hidden="true"/>
+          <label htmlFor={referenceInputId} className="text-[10px] font-bold text-violet-500 flex-shrink-0">Reference:</label>
+          <input
+            id={referenceInputId}
+            type="text" maxLength={1} value={referenceChar}
+            onChange={e => setReferenceChar(e.target.value.trim())}
+            placeholder="e.g. ක"
+            autoCapitalize="none" autoCorrect="off" spellCheck={false}
+            className="w-12 text-center font-sinhala font-black text-sm bg-transparent border border-violet-400/40 rounded-lg py-1 focus:outline-none text-violet-500"
+          />
+          <span className="text-[9px] text-violet-400 flex-1" role="status">
+            {referenceChar && !glyphs[referenceChar]?.length ? 'මේ char එක draw කරලා නෑ' : 'ඝෝස්ට් overlay ලෙස පෙනේවි'}
+          </span>
+        </div>
+      )}
+
       {showShortcuts && (
         <div className={`p-3 rounded-xl border text-[10px] ${T.sub}`}>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-1 font-mono">
