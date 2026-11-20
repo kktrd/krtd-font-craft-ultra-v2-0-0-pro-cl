@@ -440,6 +440,16 @@ function AppInner() {
     }
   };
 
+  const exportFEA = async () => {
+    try {
+      const { downloadFEA } = await import('./utils/fontCompiler.js');
+      const n = await downloadFEA(fontName, metrics, glyphs);
+      toast(`🎉 "${fontName}.fea" — ${n} glyphs`, 'success', 5000);
+    } catch (err) {
+      toast(`❌ .fea error: ${err.message}`, 'error');
+    }
+  };
+
   const exportTestSheet = async () => {
     setCloudLoading(true);
     try {
@@ -549,6 +559,8 @@ function AppInner() {
     onCompileOTF: compileOTF,
     onCompileWOFF: compileWOFF,
     onExportTestSheet: exportTestSheet,
+    onExportFEA: exportFEA,
+    setGlyphs, toast,
     onSelectChar: setSelectedChar,
     onExportSpecimenPDF: exportSpecimenPDF,
     onOpenHistory: openHistorySheet,

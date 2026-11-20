@@ -541,3 +541,10 @@ Open with the 🤖 button (bottom-right) or **Alt+A**.
 
 ### Weight templates
 Canvas Studio → WEIGHT TEMPLATES: Thin / Light / Regular / Bold / Extra Bold × Calligraphy / Tapered / Monoline. One tap sets the pen; "සියලු අකුරු → weight" or the per-character buttons re-weight strokes already drawn (taper/pressure shape kept, one-step Undo).
+
+## v6.1.0 — FontCreator-inspired tools
+Studied High-Logic FontCreator's feature set and added the parts that fit a stroke-based Sinhala font studio:
+- **Glyph Transformer** — scale, rotate, skew, mirror, move; presets Italic / Oblique / Condensed / Extended / Small caps; one glyph or the whole font; Undo.
+- **Optimize Contours + Round XY** — RDP tolerance + grid snapping, live point-count saving, one glyph or whole font; Undo.
+- **OpenType Features (.fea)** — AFDKO export of the font's ligatures (ccmp/liga), kerning, mark positioning and GDEF classes; opens in FontCreator, Glyphs, fontmake.
+- The canvas now repaints whenever a glyph is changed from outside (transformer, optimize, weight templates).

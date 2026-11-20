@@ -236,6 +236,14 @@ export async function downloadOTF(fontName, metrics, glyphs) {
   return compiledCount;
 }
 
+/** Writes the font's OpenType features as an AFDKO <name>.fea text file. @returns {Promise<number>} glyph count */
+export async function downloadFEA(fontName, metrics, glyphs) {
+  const { model, compiledCount } = buildFontModel({ fontName, metrics, glyphs });
+  const { buildFea } = await import('./feaExport.js');
+  saveBytes(new TextEncoder().encode(buildFea(model)), `${fontName}.fea`, 'text/plain');
+  return compiledCount;
+}
+
 /** Compiles a TrueType font, packs it as WOFF (web font) and downloads <name>.woff. @returns {Promise<number>} glyph count */
 export async function downloadWOFF(fontName, metrics, glyphs) {
   const { bytes, compiledCount, puaMap } = compileTrueTypeFont({ fontName, metrics, glyphs });

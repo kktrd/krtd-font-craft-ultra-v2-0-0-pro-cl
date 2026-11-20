@@ -341,6 +341,12 @@ export default function CanvasWorkspace({
     redrawGlyph(glyphs[selectedChar]);
   }, [aiSmooth]);
 
+  // Glyph changed from outside the canvas (Transformer, Optimize, Weight templates, undo…) → repaint
+  useEffect(() => {
+    if (!contextRef.current || isDrawingRef.current) return;
+    redrawGlyph(glyphs[selectedChar]);
+  }, [glyphs[selectedChar]]);
+
   // ── Keyboard shortcuts ─────────────────────────────────────────────────
   useEffect(() => {
     const handler = (e) => {

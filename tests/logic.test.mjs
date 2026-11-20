@@ -29,6 +29,9 @@ import { autoSpacing, edgeDepths } from '../src/utils/autoSpacing.js';
 import { copySpacing } from '../src/utils/settingsSync.js';
 import { isTailSequence } from '../src/utils/gposWriter.js';
 import { WEIGHTS, meanWidth, nearestWeight, reweightGlyphs } from '../src/utils/weightTemplates.js';
+import { transformStrokes, transformGlyphs, normalizeOp, isIdentity, strokesBBox } from '../src/utils/glyphTransform.js';
+import { optimizeStroke, optimizeGlyphs, countPoints } from '../src/utils/glyphOptimize.js';
+import { buildFea } from '../src/utils/feaExport.js';
 import { fitCanvasHeight, MIN_CANVAS, CONTROLS_MIN } from '../src/utils/layoutFit.js';
 import { sanitizeAcc, isOpen, saveOpen, loadAcc, ACC_KEY } from '../src/utils/uiState.js';
 import { toWOFF } from '../src/utils/woffWriter.js';
@@ -614,6 +617,21 @@ t('fontCompiler: spacing vowel signs get tight bearings and are not kerned', () 
   const [eL, eR] = xs(by(0x0dd9)); assert.equal(Math.round(eL), 45); assert.equal(by(0x0dd9).advance, Math.max(110, Math.round(eR) + 15));
   const [kL] = xs(by(0x0d9a)); assert.equal(Math.round(kL), 60);
 });
+t('feaExport: ligatures, kerning, marks and GDEF classes are written with valid structure', () => {
+  const line = (x1, y1, x2, y2) => { const a = []; for (let i = 0; i <= 8; i++) a.push({ x: x1 + (x2 - x1) * i / 8, y: y1 + (y2 - y1) * i / 8, isEraser: false, strokeWidth: 14 }); return a; };
+  const metrics = { baseline: 400, ascender: 100, descender: 480, xHeight: 200, capHeight: 120 };
+  const { model } = buildFontModel({ fontName: 'F', metrics, glyphs: {
+    'ක': [line(100, 200, 250, 200), line(100, 200, 100, 380)], 'ෂ': [line(100, 250, 260, 380)], '්': [line(150, 100, 200, 100)],
+    'ක්ෂ': [line(80, 150, 300, 350)] } });
+  const fea = buildFea(model);
+  assert.match(fea, /languagesystem sinh dflt;/);
+  assert.match(fea, /feature liga \{[\s\S]*sub uni[0-9A-F]+ uni[0-9A-F]+ uni[0-9A-F]+ by uni[0-9A-F]+;/);
+  assert.match(fea, /feature kern \{/);
+  assert.match(fea, /markClass uni0DCA <anchor -?\d+ -?\d+> @MC_0;/);
+  assert.match(fea, /pos base uni0D9A <anchor/);
+  assert.match(fea, /table GDEF \{\n  GlyphClassDef \[/);
+  assert.equal((fea.match(/\{/g) || []).length, (fea.match(/\}/g) || []).length);
+});
 t('fontQuality: errors, ligature parts, bounds, core coverage, clean pass', () => {
   const line = (x1, y1, x2, y2) => { const a = []; for (let i = 0; i <= 8; i++) a.push({ x: x1 + (x2 - x1) * i / 8, y: y1 + (y2 - y1) * i / 8, isEraser: false, strokeWidth: 14 }); return a; };
   const metrics = { baseline: 400, ascender: 100, descender: 480, xHeight: 200, capHeight: 120 };
@@ -747,6 +765,48 @@ t('weightTemplates: re-weight keeps shape, skips eraser, one-char scope, safe on
   assert.equal(nearestWeight(23).id, 'bold');
   assert.equal(nearestWeight(1).id, 'thin');
   assert.equal(WEIGHTS.length, 5);
+});
+t('glyphTransform: scale/skew/mirror/move keep baseline, clamp, never mutate', () => {
+  const st = [[{ x: 200, y: 300, strokeWidth: 10 }, { x: 300, y: 200, strokeWidth: 10 }]];
+  const g = { a: st };
+  const sc = transformStrokes(st, { sx: 50, sy: 100 }, 400).strokes;
+  assert.equal(sc[0][0].y, 300); assert.equal(sc[0][0].x, 225); assert.equal(sc[0][1].x, 275);
+  assert.equal(st[0][0].x, 200);
+  const sk = transformStrokes(st, { skewX: 45 }, 400).strokes;       // 100 above baseline → +100 x
+  assert.ok(Math.abs(sk[0][0].x - 300) < 0.01 && Math.abs(sk[0][1].x - 500) < 0.01);
+  const mh = transformStrokes(st, { mirrorH: true }, 400).strokes;
+  assert.equal(mh[0][0].x, 300); assert.equal(mh[0][1].x, 200);
+  const mv = transformStrokes(st, { mirrorV: true }, 400).strokes;
+  assert.equal(mv[0][0].y, 500);
+  const big = transformStrokes(st, { dx: 400 }, 400);
+  assert.ok(big.clipped > 0 && big.strokes[0][1].x <= 500);
+  const w = transformStrokes(st, { sx: 200, sy: 200 }, 400).strokes;
+  assert.equal(w[0][0].strokeWidth, 20);
+  assert.equal(transformStrokes(st, { sx: 100 }, 400).strokes, st);
+  assert.ok(isIdentity({})); assert.ok(!isIdentity({ rot: 5 }));
+  assert.equal(normalizeOp({ sx: 'x', rot: 999 }).sx, 100); assert.equal(normalizeOp({ rot: 999 }).rot, 180);
+  assert.equal(transformGlyphs(g, { skewX: 10 }, 400, 'a').count, 1);
+  assert.equal(transformGlyphs(g, { skewX: 10 }, 400, 'zz').count, 0);
+  assert.equal(transformGlyphs(g, {}, 400).count, 0);
+  assert.equal(strokesBBox([]), null);
+  const r = transformStrokes([[{ x: 100, y: 100, strokeWidth: 8 }, { x: 200, y: 100, strokeWidth: 8 }]], { rot: 90 }, 400).strokes;
+  assert.ok(Math.abs(r[0][0].x - r[0][1].x) < 0.05);
+});
+t('glyphOptimize: fewer points, shape kept, eraser untouched, dots survive', () => {
+  const line = Array.from({ length: 50 }, (_, i) => ({ x: 10 + i * 4, y: 100 + (i % 2) * 0.2, strokeWidth: 9 }));
+  const o = optimizeStroke(line, 1.5, 0);
+  assert.equal(o.length, 2); assert.equal(o[0].strokeWidth, 9);
+  const dup = [{ x: 5, y: 5, strokeWidth: 4 }, { x: 5, y: 5, strokeWidth: 4 }, { x: 5, y: 5, strokeWidth: 4 }];
+  assert.ok(optimizeStroke(dup, 1.5, 0).length >= 2);
+  const sn = optimizeStroke([{ x: 11, y: 12, strokeWidth: 5 }, { x: 33, y: 47, strokeWidth: 5 }, { x: 52, y: 88, strokeWidth: 5 }], 0.5, 10);
+  assert.ok(sn.every((p) => p.x % 10 === 0 && p.y % 10 === 0));
+  const er = [{ x: 1, y: 1, isEraser: true }, { x: 2, y: 2, isEraser: true }, { x: 3, y: 3, isEraser: true }];
+  assert.equal(optimizeStroke(er, 1.5, 5), er);
+  const g = { a: [line], b: [er] };
+  const r = optimizeGlyphs(g, { epsilon: 1.5, grid: 0 });
+  assert.equal(r.before, 50); assert.equal(r.after, 2); assert.equal(countPoints(g), 50);
+  assert.equal(optimizeGlyphs(g, {}, 'zz').count, 0);
+  assert.equal(countPoints(null), 0);
 });
 t('layoutFit: canvas height fits column, has floor, handles bad input', () => {
   assert.equal(fitCanvasHeight(800, 100), 800 - 100 - CONTROLS_MIN);

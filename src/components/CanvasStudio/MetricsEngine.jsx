@@ -4,6 +4,8 @@ import CoverageCard from './CoverageCard.jsx';
 import QualityCard from './QualityCard.jsx';
 import MetaCard from './MetaCard.jsx';
 import SpacingCard from './SpacingCard.jsx';
+import TransformCard from './TransformCard.jsx';
+import OptimizeCard from './OptimizeCard.jsx';
 import { Sliders, RotateCcw, UploadCloud, DownloadCloud, Download, Upload, FileType2, History, FileText, Brain } from 'lucide-react';
 import { METRIC_LABELS } from '../../utils/glyphData.js';
 import Collapsible from '../Shared/Collapsible.jsx';
@@ -34,7 +36,7 @@ export default function MetricsEngine({
   onExportJSON, onImportJSON,
   onCompileSVG, onCompileTTF, onCompileOTF, onCompileWOFF, onExportTestSheet, onOpenHistory, onExportSpecimenPDF,
   onLearnStyleProfile, styleProfile, savedLabel,
-  selectedChar, glyphs, onExportAllPNGs, onSelectChar,
+  selectedChar, glyphs, setGlyphs, toast, onExportFEA, onExportAllPNGs, onSelectChar,
   T,
 }) {
   const fontNameId = useId();
@@ -87,6 +89,8 @@ export default function MetricsEngine({
         </div>
       </Collapsible>
 
+      <TransformCard T={T} glyphs={glyphs} setGlyphs={setGlyphs} selectedChar={selectedChar} baseline={metrics.baseline} toast={toast}/>
+      <OptimizeCard T={T} glyphs={glyphs} setGlyphs={setGlyphs} selectedChar={selectedChar} toast={toast}/>
       <SpacingCard selectedChar={selectedChar} fontName={fontName} metrics={metrics} glyphs={glyphs} T={T}/>
       <GlyphInspector selectedChar={selectedChar} glyphs={glyphs} T={T}/>
       <CoverageCard glyphs={glyphs} selectedChar={selectedChar} onSelectChar={onSelectChar} T={T}/>
@@ -118,6 +122,7 @@ export default function MetricsEngine({
           {onExportTestSheet && <Btn onClick={onExportTestSheet} icon={Download} cls={T.accentBg}>Typing Test Sheet (PNG)</Btn>}
           <Btn onClick={onExportSpecimenPDF} icon={FileText} cls={T.accentBg}>Specimen Sheet (PDF)</Btn>
           <Btn onClick={onExportAllPNGs} icon={Download} cls={T.btnGhost}>All PNGs (ZIP)</Btn>
+          {onExportFEA && <Btn onClick={onExportFEA} icon={FileText} cls={T.btnGhost}>OpenType Features (.fea)</Btn>}
           <Btn onClick={onCompileSVG} icon={Download} cls={T.btnGhost}>SVG Font (legacy)</Btn>
           <p className="text-[11px] opacity-70 leading-snug">
             TTF = installable font (Word, Canva, Windows, Mac). OTF = OpenType (CFF). WOFF = compressed, for websites.
