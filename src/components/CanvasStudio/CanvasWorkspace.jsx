@@ -16,6 +16,9 @@ import ShapeCompare from './ShapeCompare.jsx';
 import BrushPalette from './BrushPalette.jsx';
 import Collapsible from '../Shared/Collapsible.jsx';
 import WeightTemplates from './WeightTemplates.jsx';
+import ReferenceCard from './ReferenceCard.jsx';
+import ReferenceOverlay from './ReferenceOverlay.jsx';
+import { useReferenceArt } from '../../utils/useReferenceArt.js';
 import { fitCanvasHeight } from '../../utils/layoutFit.js';
 import { CUSTOM_KEY, sanitizeCustom, stepPreset, BRUSH_PRESETS } from '../../utils/brushPresets.js';
 
@@ -198,6 +201,7 @@ export default function CanvasWorkspace({
   const baseScale   = Math.min(1, (containerW - 4) / CS, (fitH - 4) / CS);
   const totalScale  = baseScale * zoomLevel;
   const displaySize = CS * totalScale;
+  const refArt = useReferenceArt();
   useEffect(() => { displaySizeRef.current = displaySize; }, [displaySize]);
 
   // ── Pointer pressure sampler — runs alongside mouse/touch handlers, ─────
@@ -719,6 +723,7 @@ export default function CanvasWorkspace({
             aria-hidden="true"
             style={{ position:'absolute', zIndex:3, top:0, left:0, width:`${displaySize}px`, height:`${displaySize}px`, pointerEvents:'none' }}
           />
+          <ReferenceOverlay art={refArt} dark={theme==='dark'} canvasPx={displaySize} />
         </div>
       </div>
 
@@ -802,6 +807,8 @@ export default function CanvasWorkspace({
         </div>
       )}
 
+
+      <ReferenceCard T={T} art={refArt} toast={toast} />
 
       <WeightTemplates T={T} glyphs={glyphs} setGlyphs={setGlyphs} selectedChar={selectedChar}
         brushMode={brushMode} strokeWidth={strokeWidth} setBrushMode={setBrushMode} setStrokeWidth={setStrokeWidth}

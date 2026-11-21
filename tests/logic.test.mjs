@@ -32,6 +32,7 @@ import { WEIGHTS, meanWidth, nearestWeight, reweightGlyphs } from '../src/utils/
 import { transformStrokes, transformGlyphs, normalizeOp, isIdentity, strokesBBox } from '../src/utils/glyphTransform.js';
 import { optimizeStroke, optimizeGlyphs, countPoints } from '../src/utils/glyphOptimize.js';
 import { buildFea } from '../src/utils/feaExport.js';
+import { sanitizeRef, fitSize, refCss, dragTo, pinchTo, REF_DEFAULT } from '../src/utils/referenceArt.js';
 import { fitCanvasHeight, MIN_CANVAS, CONTROLS_MIN } from '../src/utils/layoutFit.js';
 import { sanitizeAcc, isOpen, saveOpen, loadAcc, ACC_KEY } from '../src/utils/uiState.js';
 import { toWOFF } from '../src/utils/woffWriter.js';
@@ -807,6 +808,22 @@ t('glyphOptimize: fewer points, shape kept, eraser untouched, dots survive', () 
   assert.equal(r.before, 50); assert.equal(r.after, 2); assert.equal(countPoints(g), 50);
   assert.equal(optimizeGlyphs(g, {}, 'zz').count, 0);
   assert.equal(countPoints(null), 0);
+});
+t('referenceArt: sanitize, fit, css mapping, drag and pinch are bounded', () => {
+  assert.deepEqual(sanitizeRef(null), { ...REF_DEFAULT });
+  const bad = sanitizeRef({ src: 'javascript:alert(1)', opacity: 9999, scale: -5, x: 'a', rot: 900 });
+  assert.equal(bad.src, ''); assert.equal(bad.opacity, 100); assert.equal(bad.scale, 10); assert.equal(bad.x, 0); assert.equal(bad.rot, 180);
+  assert.equal(sanitizeRef({ src: 'data:image/jpeg;base64,AAAA' }).src, 'data:image/jpeg;base64,AAAA');
+  assert.equal(sanitizeRef({ src: 'data:text/html;base64,AAAA' }).src, '');
+  assert.deepEqual(fitSize(3200, 1600), { w: 1600, h: 800 }); assert.deepEqual(fitSize(800, 600), { w: 800, h: 600 }); assert.deepEqual(fitSize(0, 5), { w: 0, h: 0 });
+  const light = refCss({ opacity: 50, x: 10, flip: true }, false), dark = refCss({ invert: false }, true);
+  assert.equal(light.mixBlendMode, 'multiply'); assert.equal(light.left, '60%'); assert.equal(light.opacity, 0.5);
+  assert.ok(light.transform.includes('scaleX(-1)')); assert.ok(!light.filter.includes('invert'));
+  assert.equal(dark.mixBlendMode, 'screen'); assert.ok(dark.filter.includes('invert(1)'));
+  assert.ok(!refCss({ invert: true }, true).filter.includes('invert'));
+  const d = dragTo({ x: 0, y: 0 }, 50, -25, 500); assert.equal(d.x, 10); assert.equal(d.y, -5);
+  assert.equal(dragTo({ x: 149, y: 0 }, 500, 0, 500).x, 150); assert.deepEqual(dragTo({ x: 1, y: 2 }, 5, 5, 0), { x: 1, y: 2 });
+  assert.equal(pinchTo({ scale: 100 }, 2), 200); assert.equal(pinchTo({ scale: 300 }, 5), 400); assert.equal(pinchTo({ scale: 100 }, NaN), 100);
 });
 t('layoutFit: canvas height fits column, has floor, handles bad input', () => {
   assert.equal(fitCanvasHeight(800, 100), 800 - 100 - CONTROLS_MIN);

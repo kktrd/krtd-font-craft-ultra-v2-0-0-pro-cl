@@ -548,3 +548,6 @@ Studied High-Logic FontCreator's feature set and added the parts that fit a stro
 - **Optimize Contours + Round XY** — RDP tolerance + grid snapping, live point-count saving, one glyph or whole font; Undo.
 - **OpenType Features (.fea)** — AFDKO export of the font's ligatures (ccmp/liga), kerning, mark positioning and GDEF classes; opens in FontCreator, Glyphs, fontmake.
 - The canvas now repaints whenever a glyph is changed from outside (transformer, optimize, weight templates).
+
+## v6.2.0 — Reference Artwork
+Canvas Studio → REFERENCE ARTWORK: upload (or photograph) handwriting / historic lettering and trace over it. The image sits above the canvas like tracing paper (multiply blend; screen + invert on the dark theme), never enters the font, and is remembered across reloads (settings in localStorage, image in IndexedDB). "Adjust" mode: drag to move, pinch / mouse-wheel to resize; sliders for opacity, size, move, rotate, contrast; gray / invert / mirror.
