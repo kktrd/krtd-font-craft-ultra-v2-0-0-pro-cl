@@ -1,3 +1,12 @@
+/* ══ UI TYPEFACE — FIXED RULE (see docs/UI-FONT-RULE.md) ═════════════════════════════════
+   Google Sans Flex (Latin) + Noto Sans Sinhala (Sinhala), both SELF-HOSTED in /public/fonts so the
+   interface looks identical on every device, with no dependence on Google Fonts. Do not change. */
+@font-face { font-family: 'Google Sans Flex'; font-style: normal; font-weight: 400 800; font-display: swap;
+  src: url('/fonts/GoogleSansFlex-latin.woff') format('woff'); }
+@font-face { font-family: 'Noto Sans Sinhala'; font-style: normal; font-weight: 400 800; font-display: swap;
+  src: url('/fonts/NotoSansSinhala-ui.woff') format('woff'); }
+:root { --ui-font: 'Google Sans Flex','Noto Sans Sinhala',system-ui,-apple-system,'Segoe UI',sans-serif; }
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -14,7 +23,7 @@
 
   body {
     margin: 0;
-    font-family: 'Google Sans Flex','Google Sans','DM Sans','Noto Sans Sinhala',system-ui,-apple-system,'Segoe UI',sans-serif;
+    font-family: var(--ui-font);
     font-feature-settings: 'tnum' 0;
     letter-spacing: 0.005em;
     text-rendering: optimizeLegibility;
@@ -63,7 +72,7 @@ input[type="range"]::-webkit-slider-thumb {
 
 /* ── Sinhala font class ─────────────────────────────────────────── */
 .font-sinhala {
-  font-family: 'Google Sans Flex','Google Sans','DM Sans','Noto Sans Sinhala',system-ui,-apple-system,'Segoe UI',sans-serif;
+  font-family: var(--ui-font);
 }
 
 /* ── One typeface: form controls inherit it, numbers align (no separate monospace face) ── */

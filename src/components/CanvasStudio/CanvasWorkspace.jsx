@@ -238,7 +238,7 @@ export default function CanvasWorkspace({
       ctx.beginPath(); ctx.moveTo(MIRROR_AXIS, 0); ctx.lineTo(MIRROR_AXIS, CS); ctx.stroke();
       ctx.setLineDash([]);
       ctx.fillStyle = '#ec4899';
-      ctx.font = '700 9px "DM Sans",system-ui,sans-serif';
+      ctx.font = '700 9px "Google Sans Flex","Noto Sans Sinhala",system-ui,sans-serif';
       ctx.textAlign = 'center';
       ctx.fillText('MIRROR AXIS', MIRROR_AXIS, 12);
     }
@@ -250,7 +250,7 @@ export default function CanvasWorkspace({
       ctx.fillRect(0, 0, CS, 18);
       ctx.fillRect(0, 0, 18, CS);
       ctx.fillStyle = rulerTx;
-      ctx.font = '600 7px "DM Sans",system-ui,sans-serif';
+      ctx.font = '600 7px "Google Sans Flex","Noto Sans Sinhala",system-ui,sans-serif';
       ctx.textAlign = 'left';
       for (let i=50; i<CS; i+=50) {
         ctx.fillText(i, i+2, 11);
@@ -275,7 +275,7 @@ export default function CanvasWorkspace({
         ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(CS,y); ctx.stroke();
         ctx.setLineDash([]);
         ctx.fillStyle = c;
-        ctx.font = '700 9px "DM Sans",system-ui,sans-serif';
+        ctx.font = '700 9px "Google Sans Flex","Noto Sans Sinhala",system-ui,sans-serif';
         ctx.textAlign = 'left';
         ctx.fillText(label, showRuler ? 22 : 4, y-3);
       });

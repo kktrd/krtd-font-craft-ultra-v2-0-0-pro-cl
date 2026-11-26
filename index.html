@@ -21,9 +21,9 @@
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..900;1,9..40,300..900&family=Noto+Sans+Sinhala:wght@100..900&display=swap" rel="stylesheet" />
-    <!-- UI typeface (own link: if it ever fails the DM Sans fallback above takes over) -->
-    <link href="https://fonts.googleapis.com/css2?family=Google+Sans+Flex:wght@400..800&display=swap" rel="stylesheet" />
+    <!-- UI typeface: self-hosted (public/fonts) — fixed rule, never swapped -->
+    <link rel="preload" href="/fonts/GoogleSansFlex-latin.woff" as="font" type="font/woff" crossorigin />
+    <link rel="preload" href="/fonts/NotoSansSinhala-ui.woff" as="font" type="font/woff" crossorigin />
     <!-- Shape Guide styles (separate links: one failing never breaks the others) -->
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Sinhala&display=swap" rel="stylesheet" />
     <link href="https://fonts.googleapis.com/css2?family=Abhaya+Libre&display=swap" rel="stylesheet" />

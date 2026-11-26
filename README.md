@@ -554,3 +554,6 @@ Canvas Studio → REFERENCE ARTWORK: upload (or photograph) handwriting / histor
 
 ## v6.3.0 — Auto-Trace
 Reference Artwork → AUTO-TRACE: renders the reference exactly as placed on the canvas, thresholds it (Otsu + "Ink" slider with live black/white preview), thins it to a centre-line skeleton (Zhang–Suen), walks the skeleton graph (ends, junctions, closed loops), prunes spurs and specks, measures stroke width from a distance transform, extends free ends by half a stroke and simplifies with RDP. Result: editable strokes for the selected character (replace or add, with Undo). Pure code in `src/utils/traceImage.js` (unit-tested); browser glue in `traceReference.js`.
+
+## v6.3.1 — UI font rule (fixed)
+UI typography is locked: Google Sans Flex + Noto Sans Sinhala, **self-hosted** in `public/fonts` (no Google Fonts dependency, identical on every device), defined once as `--ui-font`. See `docs/UI-FONT-RULE.md`; the "uiFont rule" test guards it.

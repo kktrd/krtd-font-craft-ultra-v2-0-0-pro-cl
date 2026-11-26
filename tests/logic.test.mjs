@@ -34,6 +34,7 @@ import { optimizeStroke, optimizeGlyphs, countPoints } from '../src/utils/glyphO
 import { buildFea } from '../src/utils/feaExport.js';
 import { sanitizeRef, fitSize, refCss, dragTo, pinchTo, REF_DEFAULT } from '../src/utils/referenceArt.js';
 import { traceBitmap, otsu } from '../src/utils/traceImage.js';
+import fs from 'node:fs';
 import { fitCanvasHeight, MIN_CANVAS, CONTROLS_MIN } from '../src/utils/layoutFit.js';
 import { sanitizeAcc, isOpen, saveOpen, loadAcc, ACC_KEY } from '../src/utils/uiState.js';
 import { toWOFF } from '../src/utils/woffWriter.js';
@@ -845,6 +846,18 @@ t('traceImage: lines, junctions, loops, dots, noise and blanks trace into sensib
   assert.equal(traceBitmap(new Uint8Array(W * W).fill(255), W, W).strokes.length, 0);
   assert.equal(traceBitmap(mk((d) => line(d, 100, 250, 400, 250, 10)), W, W, { fixedWidth: 30 }).strokes[0][1].strokeWidth, 30);
   assert.ok(otsu(Uint8Array.from([0, 0, 0, 255, 255, 255])) < 255);
+});
+t('uiFont rule: one self-hosted UI typeface, defined once, nothing else overrides it', () => {
+  const css = fs.readFileSync('src/index.css', 'utf8'), html = fs.readFileSync('index.html', 'utf8'), tw = fs.readFileSync('tailwind.config.js', 'utf8');
+  assert.match(css, /--ui-font:\s*'Google Sans Flex','Noto Sans Sinhala',system-ui/);
+  assert.match(css, /@font-face\s*\{\s*font-family:\s*'Google Sans Flex'[^}]*\/fonts\/GoogleSansFlex-latin\.woff/);
+  assert.match(css, /@font-face\s*\{\s*font-family:\s*'Noto Sans Sinhala'[^}]*\/fonts\/NotoSansSinhala-ui\.woff/);
+  assert.ok(fs.existsSync('public/fonts/GoogleSansFlex-latin.woff') && fs.existsSync('public/fonts/NotoSansSinhala-ui.woff'));
+  const decl = [...css.matchAll(/font-family:\s*([^;]+);/g)].map((m) => m[1].trim()).filter((v) => !/^'(Google Sans Flex|Noto Sans Sinhala)'$/.test(v));
+  assert.ok(decl.every((v) => v === 'var(--ui-font)' || v === 'inherit'), 'stray font-family: ' + decl.join(' | '));
+  assert.equal((tw.match(/var\(--ui-font\)/g) || []).length, 3);
+  assert.ok(!/DM Sans|Google\+Sans|Noto\+Sans\+Sinhala/.test(html), 'UI fonts must not come from Google Fonts');
+  assert.ok(fs.existsSync('docs/UI-FONT-RULE.md'));
 });
 t('layoutFit: canvas height fits column, has floor, handles bad input', () => {
   assert.equal(fitCanvasHeight(800, 100), 800 - 100 - CONTROLS_MIN);
