@@ -33,6 +33,7 @@ import { transformStrokes, transformGlyphs, normalizeOp, isIdentity, strokesBBox
 import { optimizeStroke, optimizeGlyphs, countPoints } from '../src/utils/glyphOptimize.js';
 import { buildFea } from '../src/utils/feaExport.js';
 import { sanitizeRef, fitSize, refCss, dragTo, pinchTo, REF_DEFAULT } from '../src/utils/referenceArt.js';
+import { traceBitmap, otsu } from '../src/utils/traceImage.js';
 import { fitCanvasHeight, MIN_CANVAS, CONTROLS_MIN } from '../src/utils/layoutFit.js';
 import { sanitizeAcc, isOpen, saveOpen, loadAcc, ACC_KEY } from '../src/utils/uiState.js';
 import { toWOFF } from '../src/utils/woffWriter.js';
@@ -824,6 +825,26 @@ t('referenceArt: sanitize, fit, css mapping, drag and pinch are bounded', () => 
   const d = dragTo({ x: 0, y: 0 }, 50, -25, 500); assert.equal(d.x, 10); assert.equal(d.y, -5);
   assert.equal(dragTo({ x: 149, y: 0 }, 500, 0, 500).x, 150); assert.deepEqual(dragTo({ x: 1, y: 2 }, 5, 5, 0), { x: 1, y: 2 });
   assert.equal(pinchTo({ scale: 100 }, 2), 200); assert.equal(pinchTo({ scale: 300 }, 5), 400); assert.equal(pinchTo({ scale: 100 }, NaN), 100);
+});
+t('traceImage: lines, junctions, loops, dots, noise and blanks trace into sensible strokes', () => {
+  const W = 500;
+  const mk = (draw) => { const g = new Uint8Array(W * W).fill(255); const dot = (x, y, r) => { for (let yy = -r; yy <= r; yy++) for (let xx = -r; xx <= r; xx++) if (xx * xx + yy * yy <= r * r) g[Math.round(y + yy) * W + Math.round(x + xx)] = 0; }; draw(dot); return g; };
+  const line = (d, x1, y1, x2, y2, r) => { const n = Math.hypot(x2 - x1, y2 - y1); for (let i = 0; i <= n; i++) d(x1 + (x2 - x1) * i / n, y1 + (y2 - y1) * i / n, r); };
+  const one = traceBitmap(mk((d) => line(d, 100, 250, 400, 250, 10)), W, W);
+  assert.equal(one.strokes.length, 1);
+  const s0 = one.strokes[0];
+  assert.ok(Math.abs(s0[0].x - 90) < 6 && Math.abs(s0[s0.length - 1].x - 410) < 6 && Math.abs(s0[0].y - 250) < 3);
+  assert.ok(Math.abs(s0[1].strokeWidth - 21) < 4);
+  const T = traceBitmap(mk((d) => { line(d, 100, 100, 400, 100, 9); line(d, 250, 100, 250, 400, 9); }), W, W);
+  assert.ok(T.strokes.length >= 2 && T.strokes.length <= 4);
+  const ring = traceBitmap(mk((d) => { for (let a = 0; a < 720; a++) { const t = a * Math.PI / 360; d(250 + 120 * Math.cos(t), 250 + 120 * Math.sin(t), 8); } }), W, W);
+  assert.equal(ring.strokes.length, 1);
+  const rs = ring.strokes[0]; assert.ok(Math.hypot(rs[0].x - rs[rs.length - 1].x, rs[0].y - rs[rs.length - 1].y) < 5);
+  const dd = traceBitmap(mk((d) => { line(d, 100, 100, 300, 300, 8); d(400, 100, 20); d(50, 450, 1); }), W, W);
+  assert.equal(dd.strokes.length, 2);
+  assert.equal(traceBitmap(new Uint8Array(W * W).fill(255), W, W).strokes.length, 0);
+  assert.equal(traceBitmap(mk((d) => line(d, 100, 250, 400, 250, 10)), W, W, { fixedWidth: 30 }).strokes[0][1].strokeWidth, 30);
+  assert.ok(otsu(Uint8Array.from([0, 0, 0, 255, 255, 255])) < 255);
 });
 t('layoutFit: canvas height fits column, has floor, handles bad input', () => {
   assert.equal(fitCanvasHeight(800, 100), 800 - 100 - CONTROLS_MIN);

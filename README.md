@@ -551,3 +551,6 @@ Studied High-Logic FontCreator's feature set and added the parts that fit a stro
 
 ## v6.2.0 — Reference Artwork
 Canvas Studio → REFERENCE ARTWORK: upload (or photograph) handwriting / historic lettering and trace over it. The image sits above the canvas like tracing paper (multiply blend; screen + invert on the dark theme), never enters the font, and is remembered across reloads (settings in localStorage, image in IndexedDB). "Adjust" mode: drag to move, pinch / mouse-wheel to resize; sliders for opacity, size, move, rotate, contrast; gray / invert / mirror.
+
+## v6.3.0 — Auto-Trace
+Reference Artwork → AUTO-TRACE: renders the reference exactly as placed on the canvas, thresholds it (Otsu + "Ink" slider with live black/white preview), thins it to a centre-line skeleton (Zhang–Suen), walks the skeleton graph (ends, junctions, closed loops), prunes spurs and specks, measures stroke width from a distance transform, extends free ends by half a stroke and simplifies with RDP. Result: editable strokes for the selected character (replace or add, with Undo). Pure code in `src/utils/traceImage.js` (unit-tested); browser glue in `traceReference.js`.

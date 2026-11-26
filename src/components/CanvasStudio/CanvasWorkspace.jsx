@@ -808,7 +808,7 @@ export default function CanvasWorkspace({
       )}
 
 
-      <ReferenceCard T={T} art={refArt} toast={toast} />
+      <ReferenceCard T={T} art={refArt} toast={toast} glyphs={glyphs} setGlyphs={setGlyphs} selectedChar={selectedChar} strokeWidth={strokeWidth} />
 
       <WeightTemplates T={T} glyphs={glyphs} setGlyphs={setGlyphs} selectedChar={selectedChar}
         brushMode={brushMode} strokeWidth={strokeWidth} setBrushMode={setBrushMode} setStrokeWidth={setStrokeWidth}
