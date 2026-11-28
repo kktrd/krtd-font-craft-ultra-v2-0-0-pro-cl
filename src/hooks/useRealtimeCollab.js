@@ -81,8 +81,13 @@ export function useRealtimeCollab(supabase, fontName, selectedChar, onRemoteGlyp
       setCollaborators(list);
     });
 
+    let winStart = 0, winCount = 0;
     channel.on('broadcast', { event: 'glyph-update' }, ({ payload }) => {
-      if (!payload || payload.senderId === identityRef.current.id) return;
+      if (!payload || typeof payload !== 'object' || payload.senderId === identityRef.current.id) return;
+      if (typeof payload.char !== 'string' || payload.char.length > 8 || !Array.isArray(payload.strokes)) return;
+      const now = Date.now();                                  // flood guard: ≤ 40 updates / second
+      if (now - winStart > 1000) { winStart = now; winCount = 0; }
+      if (++winCount > 40) return;
       skipBroadcastCharsRef.current.set(payload.char, Date.now());
       onRemoteGlyphUpdate?.(payload.char, payload.strokes);
     });

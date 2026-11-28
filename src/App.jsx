@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useId } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { sanitizeGlyphs, sanitizeMetrics, sanitizeFontName, escapeXml, isSafeGlyphKey, sanitizeStrokes } from './utils/sanitizeData.js';
+import { getGuestOwner } from './utils/ownerId.js';
 import { Loader2, X, User, Sparkles, WifiOff, RefreshCw } from 'lucide-react';
 
 import { getTokens }        from './utils/themeTokens.js';
@@ -50,7 +52,7 @@ const lsSet = (k, v) => { try { localStorage.setItem(k, v); return true; } catch
 const SB_URL = import.meta.env.VITE_SUPABASE_URL      || '';
 const SB_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 const supabase = (SB_URL && SB_URL.includes('supabase.co'))
-  ? createClient(SB_URL, SB_KEY) : null;
+  ? createClient(SB_URL, SB_KEY, { global: { headers: { 'x-krtd-device': getGuestOwner() } } }) : null;
 
 // ── Root App ─────────────────────────────────────────────────────────────────
 function AppInner() {
@@ -101,7 +103,7 @@ function AppInner() {
     try {
       const raw    = lsGet('krtd_font_craft_glyphs');
       const parsed = raw ? JSON.parse(raw) : {};
-      return verifyStorageIntegrity(parsed) ? parsed : {};
+      return verifyStorageIntegrity(parsed) ? sanitizeGlyphs(parsed) : {};
     } catch { return {}; }
   });
   const [metrics,      setMetrics]      = useState({ ...DEFAULT_METRICS });
@@ -133,7 +135,9 @@ function AppInner() {
 
   // ── Realtime collaboration ────────────────────────────────────────────────
   const handleRemoteGlyphUpdate = useCallback((char, strokes) => {
-    setGlyphs(prev => ({ ...prev, [char]: strokes }));
+    if (!isSafeGlyphKey(char)) return;                       // collaborators are untrusted input
+    const clean = sanitizeStrokes(strokes);
+    setGlyphs(prev => ({ ...prev, [char]: clean }));
   }, []);
   const { collaborators, broadcastGlyphUpdate, identity } =
     useRealtimeCollab(supabase, fontName, selectedChar, handleRemoteGlyphUpdate);
@@ -301,8 +305,8 @@ function AppInner() {
       }
       if (!data) { toast(`🔍 "${fontName}" cloud හි නෑ.`, 'info'); }
       else {
-        if (data.metrics) setMetrics(data.metrics);
-        if (data.glyphs)  setGlyphs(data.glyphs);
+        if (data.metrics) setMetrics(sanitizeMetrics(data.metrics, DEFAULT_METRICS));
+        if (data.glyphs)  setGlyphs(sanitizeGlyphs(data.glyphs));
         if (data.settings && Object.keys(data.settings).length) importSettings(data.settings);
         toast(legacy ? `✨ "${fontName}" (පරණ guest copy) load වුනා — Push කළාම ඔයාගේ අලුත් copy එකක් විදියට save වෙයි.` : `✨ "${fontName}" sync වුනා!`, 'success');
       }
@@ -375,9 +379,9 @@ function AppInner() {
       try {
         const d = JSON.parse(ev.target.result);
         if (d.glyphs) {
-          if (d.fontName) setFontName(d.fontName);
-          if (d.metrics)  setMetrics(d.metrics);
-          setGlyphs(d.glyphs);
+          if (d.fontName) setFontName(sanitizeFontName(d.fontName));
+          if (d.metrics)  setMetrics(sanitizeMetrics(d.metrics, DEFAULT_METRICS));
+          setGlyphs(sanitizeGlyphs(d.glyphs));
           if (d.settings) importSettings(d.settings);
           toast('🎯 Backup loaded!', 'success');
         } else toast('❌ Invalid backup file.', 'error');
@@ -392,7 +396,7 @@ function AppInner() {
     if (!Object.keys(glyphs).length) { toast('⚠️ Glyphs නෑ — draw කරලා retry කරන්න.', 'error'); return; }
     const asc  = 500 - metrics.baseline;
     const desc = -(metrics.descender - metrics.baseline);
-    let svg = `<?xml version="1.0" standalone="no"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">\n<defs>\n<font id="${fontName}" horiz-adv-x="500">\n<font-face font-family="${fontName}" units-per-em="500" ascent="${asc}" descent="${desc}"/>\n`;
+    let svg = `<?xml version="1.0" standalone="no"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500">\n<defs>\n<font id="${escapeXml(fontName)}" horiz-adv-x="500">\n<font-face font-family="${escapeXml(fontName)}" units-per-em="500" ascent="${asc}" descent="${desc}"/>\n`;
     Object.entries(glyphs).forEach(([char, strokes]) => {
       let d = '';
       strokes.forEach(s => {
@@ -403,7 +407,7 @@ function AppInner() {
       });
       if (d) {
         const cp = char.codePointAt(0).toString(16).toUpperCase();
-        svg += `<glyph glyph-name="u${cp}" unicode="${char}" d="${d.trim()}" horiz-adv-x="520"/>\n`;
+        svg += `<glyph glyph-name="u${cp}" unicode="${escapeXml(char)}" d="${d.trim()}" horiz-adv-x="520"/>\n`;
       }
     });
     svg += `</font>\n</defs>\n</svg>`;

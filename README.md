@@ -557,3 +557,9 @@ Reference Artwork → AUTO-TRACE: renders the reference exactly as placed on the
 
 ## v6.3.1 — UI font rule (fixed)
 UI typography is locked: Google Sans Flex + Noto Sans Sinhala, **self-hosted** in `public/fonts` (no Google Fonts dependency, identical on every device), defined once as `--ui-font`. See `docs/UI-FONT-RULE.md`; the "uiFont rule" test guards it.
+
+## v6.3.2 — Security hardening (attacker-view audit)
+- **Input sanitising** (`src/utils/sanitizeData.js`): backups, cloud rows, localStorage and collaborator packets are rebuilt with strict types/ranges/sizes; prototype-pollution keys dropped; SVG export escapes names.
+- **Collab**: payload validation + 40 updates/second flood guard.
+- **Headers** (`vercel.json`): CSP, Permissions-Policy, HSTS, COOP.
+- **Database** (`supabase/migration-v6.3.2-security.sql`, run after deploy): guest rows bound to the caller's own `x-krtd-device` header, admin policies for signed-in users only, helper functions not callable by anon, append-only audit log, least-privilege grants, row-size and per-owner quotas.

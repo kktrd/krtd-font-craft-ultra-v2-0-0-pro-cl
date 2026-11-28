@@ -35,6 +35,7 @@ import { buildFea } from '../src/utils/feaExport.js';
 import { sanitizeRef, fitSize, refCss, dragTo, pinchTo, REF_DEFAULT } from '../src/utils/referenceArt.js';
 import { traceBitmap, otsu } from '../src/utils/traceImage.js';
 import fs from 'node:fs';
+import { sanitizeGlyphs, sanitizeStrokes, sanitizeMetrics, sanitizeFontName, escapeXml, isSafeGlyphKey, LIMITS } from '../src/utils/sanitizeData.js';
 import { fitCanvasHeight, MIN_CANVAS, CONTROLS_MIN } from '../src/utils/layoutFit.js';
 import { sanitizeAcc, isOpen, saveOpen, loadAcc, ACC_KEY } from '../src/utils/uiState.js';
 import { toWOFF } from '../src/utils/woffWriter.js';
@@ -858,6 +859,25 @@ t('uiFont rule: one self-hosted UI typeface, defined once, nothing else override
   assert.equal((tw.match(/var\(--ui-font\)/g) || []).length, 3);
   assert.ok(!/DM Sans|Google\+Sans|Noto\+Sans\+Sinhala/.test(html), 'UI fonts must not come from Google Fonts');
   assert.ok(fs.existsSync('docs/UI-FONT-RULE.md'));
+});
+t('sanitizeData: hostile backups / collaborator payloads are neutralised', () => {
+  const evil = JSON.parse('{"__proto__":[[{"x":1,"y":1}]],"constructor":[[{"x":1,"y":1}]],"අ":[[{"x":"9e99","y":null,"strokeWidth":1e9},{"x":-50,"y":9999,"strokeWidth":"abc","isEraser":"yes","extra":{"a":1}},null,5]],"ok":"notarray","\\u0000bad":[[{"x":1,"y":1}]],"toolongkeytoolong":[[{"x":1,"y":1}]]}');
+  const g = sanitizeGlyphs(evil);
+  assert.deepEqual(Object.keys(g), ['අ']);
+  assert.equal(g['අ'][0].length, 2);
+  assert.deepEqual(g['අ'][0][0], { x: 500, y: 0, isEraser: false, strokeWidth: 120 });
+  assert.deepEqual(g['අ'][0][1], { x: 0, y: 500, isEraser: false, strokeWidth: 14 });
+  assert.equal(Object.getPrototypeOf(g), Object.prototype); assert.equal(({}).polluted, undefined);
+  const big = [Array.from({ length: LIMITS.maxPointsPerStroke + 500 }, (_, i) => ({ x: i % 500, y: 5, strokeWidth: 10 }))];
+  assert.equal(sanitizeStrokes(big)[0].length, LIMITS.maxPointsPerStroke);
+  const many = Array.from({ length: 50 }, () => Array.from({ length: 5000 }, () => ({ x: 1, y: 1 })));
+  assert.ok(sanitizeStrokes(many).reduce((s, st) => s + st.length, 0) <= LIMITS.maxPointsPerGlyph);
+  assert.deepEqual(sanitizeStrokes('x'), []); assert.deepEqual(sanitizeGlyphs([1, 2]), {}); assert.deepEqual(sanitizeGlyphs(null), {});
+  assert.deepEqual(sanitizeMetrics({ ascender: 'x', baseline: 9999, hack: 1 }, { ascender: 80, baseline: 380 }), { ascender: 80, baseline: 500 });
+  assert.equal(sanitizeFontName('<img src=x onerror=alert(1)>My"Font'), 'img src=x onerror=alert(1)MyFont');
+  assert.equal(sanitizeFontName('   '), 'KRTD-FontCraft-Pro'); assert.equal(sanitizeFontName('a'.repeat(200)).length, LIMITS.nameLen);
+  assert.equal(escapeXml('<a href="x">&\'</a>'), '&lt;a href=&quot;x&quot;&gt;&amp;&apos;&lt;/a&gt;');
+  assert.ok(isSafeGlyphKey('අ') && !isSafeGlyphKey('__proto__') && !isSafeGlyphKey(''));
 });
 t('layoutFit: canvas height fits column, has floor, handles bad input', () => {
   assert.equal(fitCanvasHeight(800, 100), 800 - 100 - CONTROLS_MIN);
